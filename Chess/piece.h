@@ -10,6 +10,7 @@ constexpr inline static char islower(char c) noexcept { return 'a' <= c && c <= 
 constexpr inline static char isupper(char c) noexcept { return 'A' <= c && c <= 'Z'; }
 
 namespace Piece {
+  // what each piece is represented by in FEN notation
   enum Name : const char {
     // the name of an empty board square
     square = ' ',
@@ -32,6 +33,7 @@ namespace Piece {
     white_king = 'K',
     white_queen = 'Q',
   };
+  // lower-case version of Name - removing color from the mix
   enum Type : const char {
     // the type of an empty board square
     square_type = ' ',
@@ -45,16 +47,21 @@ namespace Piece {
     king = 'k',
     queen = 'q',
   };
+  // removes piece type from consideration, focusing only on color
   enum Color : const char {
-    black = 'b',
-    white = 'w',
-
     // the color of an empty board square
     square_color = ' ',
+    
+    black = 'b',
+    white = 'w',
   };
 
+  // converts a piece Name to a Type for easy comparison
   constexpr inline Type getType(Name p) noexcept {
     return static_cast<Type>(tolower(static_cast<char>(p)));
+  }
+  constexpr inline Color getColor(Name p) noexcept {
+    return (isWhite(p)) ? white : ((isBlack(p)) ? black : square_color);
   }
 
   constexpr inline bool isPawn(Name p) noexcept { return getType(p) == pawn; }
@@ -71,10 +78,9 @@ namespace Piece {
     return islower(static_cast<char>(p));
   }
   constexpr inline bool isSquare(Name p) noexcept { return p == square; }
-  constexpr inline Color getColor(Name p) noexcept {
-    return (isWhite(p)) ? white : ((isBlack(p)) ? black : square_color);
-  }
 
+  // determines whether a char is a valid piece name in FEN
+  // does not return true if c is a space (this method is used for validating FEN)
   constexpr inline bool isValidName(char c) noexcept {
     return (
       (isupper(c) && (c == white_pawn || c == white_knight || c == white_bishop
