@@ -166,6 +166,13 @@ public: // instance methods
   // ! Ignores any piece that may already be there, could corrupt the board
   // ! Undefined behavior when p is Piece::Name::square
   inline void pushPiece(Piece::Name p, bb square) noexcept;
+  inline void pushPiece(Piece::Name p, int idx) noexcept;
+  // Removes any piece from the board square specified
+  inline void rmPiece(bb square) noexcept;
+  inline void rmPiece(int idx) noexcept;
+  // Removes a piece from the board square specified, then
+  // replaces it with the piece specified
+  inline void replacePiece(bb square, Piece::Name p) noexcept;
 
   // convert the entire board representation to a string which can be
   // easily printed out, with the proper piece names
@@ -175,7 +182,7 @@ public: // instance methods
     return os << board.toString();
   }
 private:
-  constexpr static inline int num_boards = 8;
+  constexpr static inline size_t num_boards = 8;
   bb boards[num_boards];
   // the index in boards where each item lies
   // black & white contain all black/white pieces,
