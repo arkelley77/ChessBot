@@ -20,9 +20,6 @@ public:
   void setUp(char* fen);
   void setUp(std::string& fen);
   
-  void loadPGN(char* filename);
-  void loadPGN(std::string& filename);
-  
   std::string& toString() const noexcept;
   
   friend std::ostream& operator<<(std::ostream& os, Board& board) {
