@@ -23,24 +23,35 @@ public: // type definitions & enums
   //  LSB  a  b  c  d  e  f  g  h
   typedef uint64_t bb;
 
+  // mask representing each file
+  // for example, column A is the lowest byte or 0xff
+  // and column H is the highest byte
   enum File : const bb {
     a = 0x00000000000000ff, b = 0x000000000000ff00,
     c = 0x0000000000ff0000, d = 0x00000000ff000000,
     e = 0x000000ff00000000, f = 0x0000ff0000000000,
     g = 0x00ff000000000000, h = 0xff00000000000000
   };
+  // indexed list of columns for easy lookup
   constexpr static inline File files[8] = { a, b, c, d, e, f, g };
+  // mask representing each rank
+  // for example, row 1 is the lowest bit in every byte,
+  // or 0x0101010101010101, while row 8 is the highest bit
   enum Rank : const bb {
     r1 = 0x0101010101010101, r2 = 0x0202020202020202,
     r3 = 0x0404040404040404, r4 = 0x0808080808080808,
     r5 = 0x1010101010101010, r6 = 0x2020202020202020,
     r7 = 0x4040404040404040, r8 = 0x8080808080808080
   };
+  // indexed list of ranks for easy lookup
   constexpr static inline Rank ranks[8] = { r1, r2, r3, r4, r5, r6, r7, r8 };
+  // masks to represent the long diagonals
   enum Diagonal : const bb {
     a1_to_h8 = 0x8040201008040201,
     a8_to_h1 = 0x0102040810204080,
   };
+  // each value represents the location of a specific
+  // board square by having only that bit set to 1
   enum Square : const bb {
     a1 = a & r1, a2 = a & r2, a3 = a & r3, a4 = a & r4,
       a5 = a & r5, a6 = a & r6, a7 = a & r7, a8 = a & r8,
@@ -59,6 +70,7 @@ public: // type definitions & enums
     h1 = h & r1, h2 = h & r2, h3 = h & r3, h4 = h & r4,
       h5 = h & r5, h6 = h & r6, h7 = h & r7, h8 = h & r8,
   };
+  // indexed list of squares for easy lookup
   constexpr static inline Square squares[64] = {
     a1, a2, a3, a4, a5, a6, a7, a8,
     b1, b2, b3, b4, b5, b6, b7, b8,
@@ -69,26 +81,28 @@ public: // type definitions & enums
     g1, g2, g3, g4, g5, g6, g7, g8,
     h1, h2, h3, h4, h5, h6, h7, h8,
   };
-
+  
+  // compass directions based on indexing system
+  // see the comment on BitBoard::bb for a clearer picture
   enum Direction : int {
-    n_west = -7, north = 1, n_east = 9,
-    west = -8, east = 8,
+    n_west = -7, north = 1,  n_east = 9,
+    west = -8,                 east = 8,
     s_west = -9, south = -1, s_east = 7,
 
-    n_n_west = -6, n_n_east = 10,
-    w_n_west = -15, e_n_east = 17,
-    w_s_west = -17, e_s_east = 15,
-    s_s_west = -10, s_s_east = 6,
+        n_n_west = -6, n_n_east = 10,
+    w_n_west = -15,        e_n_east = 17,
+    w_s_west = -17,        e_s_east = 15,
+        s_s_west = -10, s_s_east = 6,
   };
 
 public: // static methods
-  constexpr static inline bool onSquare(const bb& piece, const Square& sq) noexcept {
+  constexpr static inline bool isOnSquare(const bb& piece, const Square& sq) noexcept {
     return piece & sq;
   }
-  constexpr static inline bool onFile(const bb& piece, const File& f) noexcept {
+  constexpr static inline bool isOnFile(const bb& piece, const File& f) noexcept {
     return piece & f;
   }
-  constexpr static inline bool onRank(const bb& piece, const Rank& r) noexcept {
+  constexpr static inline bool isOnRank(const bb& piece, const Rank& r) noexcept {
     return piece & r;
   }
 
@@ -96,6 +110,7 @@ public: // static methods
   constexpr static inline int getCol(const bb& piece) noexcept {
     return Binary::indexOfMS1B(piece) / 8;
   }
+  // converts a file index to a bitboard mask
   constexpr static inline File colToBoard(int file) noexcept {
     return files[file];
   }
@@ -103,13 +118,16 @@ public: // static methods
   constexpr static inline int getRow(const bb& piece) noexcept {
     return Binary::indexOfMS1B(piece) % 8;
   }
+  // converts a rank index to a bitboard mask
   constexpr static inline Rank rowToBoard(int rank) noexcept {
     return ranks[rank];
   }
+  // converts a square index to a bitboard representation
+  // with only that square set to 1
   constexpr static inline Square idxToBoard(int idx) {
     return static_cast<Square>(1ULL << idx);
   }
-
+  
   constexpr static inline void setBit(bb& board, int bit_idx) noexcept {
     board |= idxToBoard(bit_idx);
   }
@@ -117,13 +135,22 @@ public: // static methods
     return board & idxToBoard(bit_idx);
   }
 
+  // converts board to a string while rotating left 90 degrees
+  // for easy printing & reading
   static std::string& toString(bb board);
 
 public: // instance methods
   inline BitBoard() noexcept;
   inline BitBoard(BitBoard& to_copy) noexcept;
+  
+  // clear the BitBoard
+  void clear() noexcept;
 
+  // set up the BitBoard to match the starting position for chess
   void setUp() noexcept;
+  
+  // set up the BitBoard based on an arbitrary position
+  // defined by Forsyth-Edwards Notation
   void setUp(const char* fen);
   inline void setUp(std::string& fen) { setUp(fen.c_str()); }
 
@@ -132,7 +159,9 @@ public: // instance methods
   // ! Undefined behavior when p is Piece::Name::square
   inline void pushPiece(Piece::Name p, bb square) noexcept;
 
-  std::string toString() const noexcept;
+  // convert the entire board representation to a string which can be
+  // easily printed out, with the proper piece names
+  std::string& toString() const noexcept;
 
   friend std::ostream& operator<<(std::ostream& os, const BitBoard& board) {
     return os << board.toString();
@@ -140,13 +169,16 @@ public: // instance methods
 private:
   constexpr static inline int num_boards = 8;
   bb boards[num_boards];
+  // the index in boards where each item lies
+  // black & white contain all black/white pieces,
+  //    regardless of type
+  // & each piece board contains all pieces of that type,
+  //    regardless of color
   enum IDX : size_t {
     black = 0, white = 1,
     pawns = 2, knights = 3, bishops = 4,
     rooks = 5, queens = 6, kings = 7,
   };
-
-  static std::string& BitBoard::toString(bb board, std::string& str, char one);
 };
 
 #endif // BITBOARD_H
