@@ -1,14 +1,18 @@
 #include "bitboard.h"
 
 BitBoard::BitBoard() noexcept {
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
-  }
+  clear();
 }
 
 BitBoard::BitBoard(BitBoard& to_copy) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] = to_copy.boards[i];
+  }
+}
+
+void BitBoard::clear() noexcept {
+  for (size_t i = 0; i < num_boards; ++i) {
+    boards[i] = 0ULL;
   }
 }
 
