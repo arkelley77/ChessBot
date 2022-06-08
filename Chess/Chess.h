@@ -1,8 +1,9 @@
-﻿// Chess.h : Include file for standard system include files,
-// or project specific include files.
-
-#pragma once
+#ifndef MAIN_H
+#define MAIN_H
 
 #include <iostream>
+#include <array>
 
-// TODO: Reference additional headers your program requires here.
+#include "bitboard.h"
+
+#endif // MAIN_H
