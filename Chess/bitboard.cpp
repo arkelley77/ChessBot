@@ -16,7 +16,6 @@ void BitBoard::clear() noexcept {
   }
 }
 
-// adds the piece to the board square
 inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] &= ~square; // empty the square in all bitboards
@@ -50,6 +49,23 @@ inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
     boards[kings] |= square;
     break;
   }
+}
+inline void BitBoard::pushPiece(Piece::Name p, int idx) noexcept {
+  pushPiece(p, idxToBoard(idx));
+}
+
+inline void rmPiece(bb square) noexcept {
+  for (size_t i = 0; i < num_boards; ++i) {
+    boards[i] &= ~square;
+  }
+}
+inline void rmPiece(int idx) noexcept {
+  rmPiece(idxToBoard(idx));
+}
+
+inline void replacePiece(bb square, Piece::Name p) noexcept {
+  rmPiece(square);
+  pushPiece(p, square);
 }
 
 void BitBoard::setUp() noexcept {
