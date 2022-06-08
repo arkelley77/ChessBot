@@ -53,10 +53,6 @@ inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
 }
 
 void BitBoard::setUp() noexcept {
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
-  }
-
   boards[white] = r1 | r2; // bottom 2 rows
   boards[black] = r7 | r8; // top 2 rows
 
@@ -70,9 +66,7 @@ void BitBoard::setUp() noexcept {
 
 void BitBoard::setUp(const char* fen) {
   // https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
-  }
+  clear();
 
 #define THROW_INVALID_FEN throw std::invalid_argument("Invalid FEN")
   BitBoard();
