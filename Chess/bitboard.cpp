@@ -12,20 +12,21 @@ BitBoard::BitBoard(BitBoard& to_copy) noexcept {
   }
 }
 
+// adds the piece to the board square
 inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
-  if (islower(p)) {
+  for (size_t i = 0; i < num_boards; ++i) {
+    boards[i] &= ~square; // empty the square in all bitboards
+  }
+  if (Piece::isSquare(p)) return; // if empty
+  
+  if (Piece::isBlack(p)) {
     boards[black] |= square;
   }
-  else if (isupper(p)) {
+  else (Piece::isWhite(p)) {
     boards[white] |= square;
   }
-  else {
-    for (size_t i = 0; i < num_boards; ++i) {
-      boards[i] &= ~square;
-    }
-    return;
-  }
-  switch (tolower(p)) {
+  
+  switch (Piece::getType(p)) {
   case Piece::pawn:
     boards[pawns] |= square;
     break;
