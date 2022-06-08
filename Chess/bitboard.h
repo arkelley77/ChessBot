@@ -1,6 +1,14 @@
 #ifndef BITBOARD_H
 #define BITBOARD_H
 
+// defines the bitboard representation of the board,
+// wich is a different way of saying it's a wrapper class around
+// an array of 64-bit unsigned integers.
+// each bit in an integer represents a board square, and each
+// integer represents a type of piece.
+// thus, bitwise operations can be used to move pieces & modify
+// the board, making it more efficient for most operations
+//
 // For more info, read https://www.chessprogramming.org/Bitboards
 
 #include <string>
