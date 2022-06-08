@@ -29,8 +29,17 @@ public:
   void setUp(const char* fen);
   void setUp(const std::string& fen) { setUp(fen.c_str()); }
   
+  // drops a piece on the board at position idx
+  // replaces anything there (which is lost forever)
   inline void pushPiece(Piece::Name piece, int idx) noexcept { board[idx] = piece; }
+  // peeks at the piece on the board at idx
   constexpr inline Piece::Name getPiece(int idx) noexcept { return board[idx]; }
+  // removes and returns the piece at idx before placing new_piece there
+  inline Piece::Name replace(int idx, Piece::Name new_piece) noexcept {
+    Piece::name old_piece = getPiece(idx);
+    pushPiece(new_piece, idx);
+    return old_piece;
+  }
   // gets the piece at the MS1b of square
   constexpr inline void getPiece(BitBoard::bb square) noexcept { 
     return getPiece(Binary::getIndexOfMS1B(square));
