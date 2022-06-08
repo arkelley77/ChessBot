@@ -20,23 +20,23 @@ public:
   constexpr inline MailBox() noexcept { clear(); }
   constexpr MailBox(const Piece::Name[] board) noexcept;
   constexpr inline MailBox(const MailBox& to_copy) noexcept {
-    MailBox(to_copy.board);
+    this->MailBox(to_copy.board);
   }
   
   constexpr inline void clear() noexcept;
   
   inline void setUp();
-  void setUp(char* fen);
-  void setUp(std::string fen);
+  void setUp(const char* fen);
+  void setUp(const std::string& fen) { setUp(fen.c_str()); }
   
-  inline void pushPiece(Piece::Name piece, int idx) noexcept;
-  constexpr inline Piece::Name getPiece(int idx) noexcept;
+  inline void pushPiece(Piece::Name piece, int idx) noexcept { board[idx] = piece; }
+  constexpr inline Piece::Name getPiece(int idx) noexcept { return board[idx]; }
   // gets the piece at the MS1b of square
   constexpr inline void getPiece(BitBoard::bb square) noexcept { 
     return getPiece(Binary::getIndexOfMS1B(square));
   }
   
-  std::string& toString();
+  std::string toString();
   
   friend std::ostream& operator<<(std::ostream& os, MailBox& board) noexcept {
     return os << board.toString();
