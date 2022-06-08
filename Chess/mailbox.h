@@ -25,7 +25,7 @@ public:
   
   constexpr inline void clear() noexcept;
   
-  constexpr inline void setUp() noexcept;
+  inline void setUp();
   void setUp(char* fen);
   void setUp(std::string fen);
   
