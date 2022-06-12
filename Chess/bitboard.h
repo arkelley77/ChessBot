@@ -204,6 +204,15 @@ public: // instance methods
 
   bb genKingMoves(bool white_to_move) const noexcept;
 
+  // used to determine legal squares for the king to be on
+  bb genPawnThreats(bool white_to_move) const noexcept;
+  bb genKnightThreats(bool white_to_move) const noexcept;
+  bb genBishopThreats(bool white_to_move) const noexcept;
+  bb genRookThreats(bool white_to_move) const noexcept;
+  bb genKingThreats(bool white_to_move) const noexcept;
+
+  bb genThreats(bool white_to_move) const noexcept;
+
   // convert the entire board representation to a string which can be
   // easily printed out, with the proper piece names
   std::string toString() const noexcept;
