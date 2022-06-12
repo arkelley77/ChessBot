@@ -175,10 +175,8 @@ public: // instance methods
   // ! Ignores any piece that may already be there, could corrupt the board
   // ! Undefined behavior when p is Piece::Name::square
   inline void pushPiece(Piece::Name p, bb square) noexcept;
-  inline void pushPiece(Piece::Name p, int idx) noexcept;
   // Removes any piece from the board square specified
   inline void rmPiece(bb square) noexcept;
-  inline void rmPiece(int idx) noexcept;
   // Removes a piece from the board square specified, then
   // replaces it with the piece specified
   inline void replacePiece(bb square, Piece::Name p) noexcept;

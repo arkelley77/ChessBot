@@ -72,7 +72,7 @@ inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
   if (Piece::isBlack(p)) {
     boards[black] |= square;
   }
-  else (Piece::isWhite(p)) {
+  else {
     boards[white] |= square;
   }
   
@@ -97,20 +97,14 @@ inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
     break;
   }
 }
-inline void BitBoard::pushPiece(Piece::Name p, int idx) noexcept {
-  pushPiece(p, idxToBoard(idx));
-}
 
-inline void rmPiece(bb square) noexcept {
+inline void BitBoard::rmPiece(bb square) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] &= ~square;
   }
 }
-inline void rmPiece(int idx) noexcept {
-  rmPiece(idxToBoard(idx));
-}
 
-inline void replacePiece(bb square, Piece::Name p) noexcept {
+inline void BitBoard::replacePiece(bb square, Piece::Name p) noexcept {
   rmPiece(square);
   pushPiece(p, square);
 }
