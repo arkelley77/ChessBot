@@ -5,9 +5,12 @@
 
 #include <string>
 #include <sstream>
+#include <vector>
 
 #include "myModules/binary/binary.h"
 #include "piece.h"
+
+using std::vector;
 
 class BitBoard {
 public: // type definitions & enums
@@ -70,6 +73,9 @@ public: // type definitions & enums
     h1, h2, h3, h4, h5, h6, h7, h8,
   };
 
+  constexpr static inline bb light_squares = 0x55AA55AA55AA55AA;
+  constexpr static inline bb dark_squares = 0xAA55AA55AA55AA55;
+
   enum Direction : int {
     n_west = -7, north = 1, n_east = 9,
     west = -8, east = 8,
@@ -117,7 +123,9 @@ public: // static methods
     return board & idxToBoard(bit_idx);
   }
 
-  static std::string& toString(bb board);
+  static vector<bb> getEachPiece(bb board) noexcept;
+
+  static std::string BitBoard::toString(bb board, char one = '1') noexcept;
 
 public: // instance methods
   inline BitBoard() noexcept;
@@ -132,6 +140,27 @@ public: // instance methods
   // ! Undefined behavior when p is Piece::Name::square
   inline void pushPiece(Piece::Name p, bb square) noexcept;
 
+  // generates the forward moves for the pawns
+  bb genPawnPushes(bool white_to_move) const noexcept;
+  vector<bb> genPawnCaptures(bool white_to_move, bb en_passant_square) const noexcept;
+  inline vector<bb> genPawnMoves(bool white_to_move, bb en_passant_square) const noexcept {
+    vector<bb> moves = genPawnCaptures(white_to_move, en_passant_square);
+    moves.push_back(genPawnPushes(white_to_move));
+    return moves;
+  }
+
+  vector<bb> genKnightMoves(bool white_to_move) const noexcept;
+
+  vector<bb> genBishopMoves(bool white_to_move) const noexcept;
+  bb genSlidingDiagonals(bool white_to_move, bb piece) const noexcept;
+
+  vector<bb> genRookMoves(bool white_to_move) const noexcept;
+  bb genSlidingRookMoves(bool white_to_move, bb piece) const noexcept;
+
+  vector<bb> genQueenMoves(bool white_move) const noexcept;
+
+  bb genKingMoves(bool white_to_move) const noexcept;
+
   std::string toString() const noexcept;
 
   friend std::ostream& operator<<(std::ostream& os, const BitBoard& board) {
@@ -140,13 +169,12 @@ public: // instance methods
 private:
   constexpr static inline int num_boards = 8;
   bb boards[num_boards];
+
   enum IDX : size_t {
     black = 0, white = 1,
     pawns = 2, knights = 3, bishops = 4,
     rooks = 5, queens = 6, kings = 7,
   };
-
-  static std::string& BitBoard::toString(bb board, std::string& str, char one);
 };
 
 #endif // BITBOARD_H
