@@ -1,6 +1,10 @@
 #ifndef BINARY_H
 #define BINARY_H
 
+// defines several useful (and probably a couple not useful) bitwise operations
+// by using templates, these functions can be generalized to a variety of use
+// cases. it even supports 128-bit computers!
+
 #include <climits>
 #include <type_traits>
 

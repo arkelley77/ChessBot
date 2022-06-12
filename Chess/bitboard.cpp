@@ -1,16 +1,18 @@
 #include "bitboard.h"
 
-#include <iostream>
-
 BitBoard::BitBoard() noexcept {
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
-  }
+  clear();
 }
 
 BitBoard::BitBoard(BitBoard& to_copy) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] = to_copy.boards[i];
+  }
+}
+
+void BitBoard::clear() noexcept {
+  for (size_t i = 0; i < num_boards; ++i) {
+    boards[i] = 0ULL;
   }
 }
 
@@ -32,9 +34,7 @@ void BitBoard::setUp() noexcept {
 
 void BitBoard::setUp(const char* fen) {
   // https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
-  }
+  clear();
 
 #define THROW_INVALID_FEN throw std::invalid_argument("Invalid FEN")
   BitBoard();
@@ -64,19 +64,19 @@ void BitBoard::setUp(const char* fen) {
 }
 
 inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
-  if (islower(p)) {
+  for (size_t i = 0; i < num_boards; ++i) {
+    boards[i] &= ~square; // empty the square in all bitboards
+  }
+  if (Piece::isSquare(p)) return; // if empty
+  
+  if (Piece::isBlack(p)) {
     boards[black] |= square;
   }
-  else if (isupper(p)) {
+  else (Piece::isWhite(p)) {
     boards[white] |= square;
   }
-  else {
-    for (size_t i = 0; i < num_boards; ++i) {
-      boards[i] &= ~square;
-    }
-    return;
-  }
-  switch (tolower(p)) {
+  
+  switch (Piece::getType(p)) {
   case Piece::pawn:
     boards[pawns] |= square;
     break;
@@ -97,7 +97,23 @@ inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
     break;
   }
 }
+inline void BitBoard::pushPiece(Piece::Name p, int idx) noexcept {
+  pushPiece(p, idxToBoard(idx));
+}
 
+inline void rmPiece(bb square) noexcept {
+  for (size_t i = 0; i < num_boards; ++i) {
+    boards[i] &= ~square;
+  }
+}
+inline void rmPiece(int idx) noexcept {
+  rmPiece(idxToBoard(idx));
+}
+
+inline void replacePiece(bb square, Piece::Name p) noexcept {
+  rmPiece(square);
+  pushPiece(p, square);
+}
 vector<BitBoard::bb>
   BitBoard::getEachPiece(BitBoard::bb board) noexcept {
   // the max # of pieces of a given type is 10
