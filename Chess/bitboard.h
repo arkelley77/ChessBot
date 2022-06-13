@@ -18,8 +18,6 @@
 #include "myModules/binary/binary.h"
 #include "piece.h"
 
-using std::vector;
-
 class BitBoard {
 public: // type definitions & enums
   // The bitboards are indexed row-major, little-endian.
@@ -146,22 +144,29 @@ public: // static methods
   constexpr static inline void setBit(bb& board, int bit_idx) noexcept {
     board |= idxToBoard(bit_idx);
   }
-  constexpr static inline bool getBit(bb& board, int bit_idx) {
+  constexpr static inline bool getBit(const bb& board, int bit_idx) {
     return board & idxToBoard(bit_idx);
   }
 
-  static vector<bb> getEachPiece(bb board) noexcept;
+  constexpr static inline bb shiftOne(const bb& board, Direction dir) noexcept {
+    return (dir < 0) ? (board >> -dir) : (board << dir);
+  }
+  constexpr static inline bb smearOne(const bb& board, Direction dir) noexcept {
+    return shiftOne(board, dir) | board;
+  }
+
+  static std::vector<bb> getEachPiece(bb board) noexcept;
 
   // converts board to a string while rotating left 90 degrees
   // for easy printing & reading
-  static std::string BitBoard::toString(bb board, char one = '1') noexcept;
+  static std::string toString(bb board, char one = '1') noexcept;
 
 public: // instance methods
-  inline BitBoard() noexcept;
+  inline BitBoard() noexcept { clear(); };
   inline BitBoard(BitBoard& to_copy) noexcept;
   
   // clear the BitBoard
-  void clear() noexcept;
+  inline void clear() noexcept;
 
   // set up the BitBoard to match the starting position for chess
   void setUp() noexcept;
@@ -174,41 +179,35 @@ public: // instance methods
   // Place the desired piece on the board
   // ! Ignores any piece that may already be there, could corrupt the board
   // ! Undefined behavior when p is Piece::Name::square
-  inline void pushPiece(Piece::Name p, bb square) noexcept;
+  inline void pushPiece(Piece::Name p, const bb& square) noexcept;
   // Removes any piece from the board square specified
-  inline void rmPiece(bb square) noexcept;
+  inline void rmPiece(const bb& square) noexcept;
   // Removes a piece from the board square specified, then
   // replaces it with the piece specified
-  inline void replacePiece(bb square, Piece::Name p) noexcept;
-
+  inline void replacePiece(Piece::Name p, const bb& square) noexcept;
+  
   // generates the forward moves for the pawns
-  bb genPawnPushes(bool white_to_move) const noexcept;
-  vector<bb> genPawnCaptures(bool white_to_move, bb en_passant_square) const noexcept;
-  inline vector<bb> genPawnMoves(bool white_to_move, bb en_passant_square) const noexcept {
-    vector<bb> moves = genPawnCaptures(white_to_move, en_passant_square);
-    moves.push_back(genPawnPushes(white_to_move));
-    return moves;
-  }
+  inline bb genPawnPushes(bool white_to_move) const noexcept;
+  inline std::vector<bb> genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept;
+  inline std::vector<bb> genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept;
+  inline bb genPawnThreats(const bb& pawn, bool white_to_move) const noexcept;
 
-  vector<bb> genKnightMoves(bool white_to_move) const noexcept;
+  std::vector<bb> genKnightMoves(bool white_to_move) const noexcept;
+  inline bb genKnightThreats(const bb& knight) const noexcept;
 
-  vector<bb> genBishopMoves(bool white_to_move) const noexcept;
-  bb genSlidingDiagonals(bool white_to_move, bb piece) const noexcept;
+  std::vector<bb> genBishopMoves(bool white_to_move) const noexcept;
+  inline bb genBishopThreats(const bb& bishop) const noexcept;
 
-  vector<bb> genRookMoves(bool white_to_move) const noexcept;
-  bb genSlidingRookMoves(bool white_to_move, bb piece) const noexcept;
+  std::vector<bb> genRookMoves(bool white_to_move) const noexcept;
+  inline bb genRookThreats(const bb& rook) const noexcept;
 
-  vector<bb> genQueenMoves(bool white_move) const noexcept;
+  std::vector<bb> genQueenMoves(bool white_move) const noexcept;
+  inline bb genQueenThreats(const bb& queen) const noexcept;
 
   bb genKingMoves(bool white_to_move) const noexcept;
+  inline bb genKingThreats(const bb& king) const noexcept;
 
-  // used to determine legal squares for the king to be on
-  bb genPawnThreats(bool white_to_move) const noexcept;
-  bb genKnightThreats(bool white_to_move) const noexcept;
-  bb genBishopThreats(bool white_to_move) const noexcept;
-  bb genRookThreats(bool white_to_move) const noexcept;
-  bb genKingThreats(bool white_to_move) const noexcept;
-
+  // used to determine check
   bb genThreats(bool white_to_move) const noexcept;
 
   // convert the entire board representation to a string which can be

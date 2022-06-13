@@ -13,9 +13,9 @@
 class Board {
 public:
   constexpr inline Board() noexcept : bit(), box() {}
-  constexpr inline Board(board& to_copy) noexcept 
+  constexpr inline Board(board& to_copy) noexcept
     : bit(to_copy.bit), box(to_copy.box) {}
-  
+
   constexpr inline void setUp() noexcept {
     bit.setUp();
     box.setUp();
@@ -25,16 +25,16 @@ public:
     box.setUp(fen);
   }
   void setUp(std::string& fen) { setUp(fen.c_str()); }
-  
+
   std::string& toString() const noexcept;
-  
+
   friend std::ostream& operator<<(std::ostream& os, Board& board) {
     return os << board.box;
   }
-  
+
 private:
   BitBoard bit;
   MailBox box;
-}
+};
 
 #endif

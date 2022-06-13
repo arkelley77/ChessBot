@@ -16,7 +16,7 @@ namespace Piece {
     square = ' ',
 
     black_pawn = 'p',
-    
+
     black_knight = 'n',
     black_bishop = 'b',
     black_rook = 'r',
@@ -51,7 +51,7 @@ namespace Piece {
   enum Color : const char {
     // the color of an empty board square
     square_color = ' ',
-    
+
     black = 'b',
     white = 'w',
   };
@@ -59,9 +59,6 @@ namespace Piece {
   // converts a piece Name to a Type for easy comparison
   constexpr inline Type getType(Name p) noexcept {
     return static_cast<Type>(tolower(static_cast<char>(p)));
-  }
-  constexpr inline Color getColor(Name p) noexcept {
-    return (isWhite(p)) ? white : ((isBlack(p)) ? black : square_color);
   }
 
   constexpr inline bool isPawn(Name p) noexcept { return getType(p) == pawn; }
@@ -78,6 +75,9 @@ namespace Piece {
     return islower(static_cast<char>(p));
   }
   constexpr inline bool isSquare(Name p) noexcept { return p == square; }
+  constexpr inline Color getColor(Name p) noexcept {
+    return (isWhite(p)) ? white : ((isBlack(p)) ? black : square_color);
+  }
 
   // determines whether a char is a valid piece name in FEN
   // does not return true if c is a space (this method is used for validating FEN)

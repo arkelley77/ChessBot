@@ -1,25 +1,34 @@
 #include "bitboard.h"
 
-BitBoard::BitBoard() noexcept {
-  clear();
+using std::vector;
+
+vector<BitBoard::bb> BitBoard::getEachPiece(BitBoard::bb board) noexcept {
+  // the max # of pieces of a given type is 10
+  // because theoretically you could keep both rooks
+  // and promote all pawns to rooks
+  vector<bb> pieces;
+  while (board) {
+    bb piece = Binary::isolateMS1B(board);
+    pieces.push_back(piece);
+    board ^= piece;
+  }
+  return pieces;
 }
 
-BitBoard::BitBoard(BitBoard& to_copy) noexcept {
+inline BitBoard::BitBoard(BitBoard& to_copy) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] = to_copy.boards[i];
   }
 }
 
-void BitBoard::clear() noexcept {
+inline void BitBoard::clear() noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
+    boards[i] = 0;
   }
 }
 
 void BitBoard::setUp() noexcept {
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0ULL;
-  }
+  clear();
 
   boards[white] = r1 | r2; // bottom 2 rows
   boards[black] = r7 | r8; // top 2 rows
@@ -63,17 +72,16 @@ void BitBoard::setUp(const char* fen) {
   }
 }
 
-inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
+inline void BitBoard::pushPiece(Piece::Name p, const bb& square) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] &= ~square; // empty the square in all bitboards
   }
   if (Piece::isSquare(p)) return; // if empty
-  
-  if (Piece::isBlack(p)) {
-    boards[black] |= square;
-  }
-  else {
+  else if (Piece::isWhite(p)) {
     boards[white] |= square;
+  }
+  else if (Piece::isBlack(p)) {
+    boards[black] |= square;
   }
   
   switch (Piece::getType(p)) {
@@ -95,34 +103,23 @@ inline void BitBoard::pushPiece(Piece::Name p, bb square) noexcept {
   case Piece::king:
     boards[kings] |= square;
     break;
+  default:
+    return;
   }
 }
 
-inline void BitBoard::rmPiece(bb square) noexcept {
+inline void BitBoard::rmPiece(const bb& square) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] &= ~square;
   }
 }
 
-inline void BitBoard::replacePiece(bb square, Piece::Name p) noexcept {
+inline void BitBoard::replacePiece(Piece::Name p, const bb& square) noexcept {
   rmPiece(square);
   pushPiece(p, square);
 }
-vector<BitBoard::bb>
-  BitBoard::getEachPiece(BitBoard::bb board) noexcept {
-  // the max # of pieces of a given type is 10
-  // because theoretically you could keep both rooks
-  // and promote all pawns to rooks
-  vector<bb> pieces;
-  while (board) {
-    bb piece = Binary::isolateMS1B(board);
-    pieces.push_back(piece);
-    board ^= piece;
-  }
-  return pieces;
-}
 
-BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
+inline BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
   bb moves = boards[pawns] & boards[white_to_move];
   bb double_moves;
   if (!moves) return moves;
@@ -148,9 +145,7 @@ BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
   moves |= double_moves;
   return moves;
 }
-
-vector<BitBoard::bb>
-  BitBoard::genPawnCaptures(bool white_to_move, BitBoard::bb en_passant_square) const noexcept {
+inline vector<BitBoard::bb> BitBoard::genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept {
   vector<bb> moves(2);
   moves[0] = moves[1] = boards[pawns] & boards[white_to_move];
   if (!moves[0]) return moves;
@@ -172,147 +167,168 @@ vector<BitBoard::bb>
   }
   return moves;
 }
+inline vector<BitBoard::bb> BitBoard::genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept {
+  vector<bb> moves = genPawnCaptures(white_to_move, en_passant_square);
+  moves.push_back(genPawnPushes(white_to_move));
+  return moves;
+}
+inline BitBoard::bb BitBoard::genPawnThreats(const bb& pawn, bool white_to_move) const noexcept {
+  return (white_to_move) ? ((pawn << n_east) | (pawn >> s_east))
+    : ((pawn << s_east) | (pawn >> n_east));
+}
 
-vector<BitBoard::bb>
-  BitBoard::genKnightMoves(bool white_to_move) const noexcept {
+vector<BitBoard::bb> BitBoard::genKnightMoves(bool white_to_move) const noexcept {
   vector<bb> moves = getEachPiece(boards[knights] & boards[white_to_move]);
   bb valid_targets = ~boards[white_to_move];
+  for (bb& knight : moves) knight = genKnightThreats(knight) & valid_targets;
+  
+  return moves;
+}
+inline BitBoard::bb BitBoard::genKnightThreats(const bb& knight) const noexcept {
   constexpr bb n_mask = ~r1, n_n_mask = n_mask & ~r2, s_mask = ~r8, s_s_mask = s_mask & ~r7;
-
-  for (bb& knight : moves) {
-    bb move_to = ((knight << n_n_east) | (knight >> s_s_east)) & n_n_mask; // 2 steps north
-    move_to |= ((knight << s_s_east) | (knight >> n_n_east)) & s_s_mask; // 2 steps south
-    move_to |= ((knight << e_n_east) | (knight >> e_s_east)) & n_mask; // 1 step north
-    move_to |= ((knight << e_s_east) | (knight >> e_n_east)) & s_mask; // 1 step south
-    move_to &= valid_targets;
-    knight = move_to;
-  }
-  return moves;
+  bb move_to = ((knight << n_n_east) | (knight >> s_s_east)) & n_n_mask; // 2 steps north
+  move_to |= ((knight << s_s_east) | (knight >> n_n_east)) & s_s_mask; // 2 steps south
+  move_to |= ((knight << e_n_east) | (knight >> e_s_east)) & n_mask; // 1 step north
+  move_to |= ((knight << e_s_east) | (knight >> e_n_east)) & s_mask; // 1 step south
+  return move_to;
 }
 
-vector<BitBoard::bb>
-  BitBoard::genBishopMoves(bool white_to_move) const noexcept {
+vector<BitBoard::bb> BitBoard::genBishopMoves(bool white_to_move) const noexcept {
   vector<bb> moves = getEachPiece(boards[bishops] & boards[white_to_move]);
-  for (bb& bishop : moves) {
-    bishop = genSlidingDiagonals(white_to_move, bishop);
-  }
+  bb valid_targets = ~boards[white_to_move];
+  for (bb& bishop : moves) bishop = genBishopThreats(bishop) & valid_targets;
+  
   return moves;
 }
-BitBoard::bb BitBoard::genSlidingDiagonals(bool white_to_move, BitBoard::bb piece) const noexcept {
+inline BitBoard::bb BitBoard::genBishopThreats(const bb& bishop) const noexcept {
   bb empty_squares = ~boards[white] & ~boards[black];
   constexpr bb n_mask = ~r1, s_mask = ~r8;
 
-  bb n_e = piece;
+  bb n_e = bishop;
   bb smeared_empty = empty_squares & n_mask;
   n_e |= smeared_empty & (n_e << n_east);
   smeared_empty &= (smeared_empty << n_east);
   n_e |= smeared_empty & (n_e << (2 * n_east));
   smeared_empty &= (smeared_empty << (2 * n_east));
   n_e |= smeared_empty & (n_e << (4 * n_east));
-  n_e = (n_e << n_east) & n_mask & ~boards[white_to_move];
+  n_e = (n_e << n_east) & n_mask;
 
-  bb n_w = piece;
+  bb n_w = bishop;
   smeared_empty = empty_squares & n_mask;
   n_w |= smeared_empty & (n_w >> s_east);
   smeared_empty &= (smeared_empty >> s_east);
   n_w |= smeared_empty & (n_w >> (2 * s_east));
   smeared_empty &= (smeared_empty >> (2 * s_east));
   n_w |= smeared_empty & (n_w >> (4 * s_east));
-  n_w = (n_w >> s_east) & n_mask & ~boards[white_to_move];
+  n_w = (n_w >> s_east) & n_mask;
 
-  bb s_e = piece;
+  bb s_e = bishop;
   smeared_empty = empty_squares & s_mask;
   s_e |= smeared_empty & (s_e << s_east);
   smeared_empty &= (smeared_empty << s_east);
   s_e |= smeared_empty & (s_e << (2 * s_east));
   smeared_empty &= (smeared_empty << (2 * s_east));
   s_e |= smeared_empty & (s_e << (4 * s_east));
-  s_e = (s_e << s_east) & s_mask & ~boards[white_to_move];
+  s_e = (s_e << s_east) & s_mask;
 
-  bb s_w = piece;
+  bb s_w = bishop;
   smeared_empty = empty_squares & s_mask;
   s_w |= smeared_empty & (s_w >> n_east);
   smeared_empty &= (smeared_empty >> n_east);
   s_w |= smeared_empty & (s_w >> (2 * n_east));
   smeared_empty &= (smeared_empty >> (2 * n_east));
   s_w |= smeared_empty & (s_w >> (4 * n_east));
-  s_w = (s_w >> n_east) & s_mask & ~boards[white_to_move];
+  s_w = (s_w >> n_east) & s_mask;
 
   return n_e | n_w | s_e | s_w;
 }
 
-vector<BitBoard::bb>
-  BitBoard::genRookMoves(bool white_to_move) const noexcept {
+vector<BitBoard::bb> BitBoard::genRookMoves(bool white_to_move) const noexcept {
   vector<bb> moves = getEachPiece(boards[rooks] & boards[white_to_move]);
-  for (bb& rook : moves) {
-    rook = genSlidingRookMoves(white_to_move, rook);
-  }
+  bb valid_targets = ~boards[white_to_move];
+  for (bb& rook : moves) rook = genRookThreats(rook) & valid_targets;
+  
   return moves;
 }
-BitBoard::bb BitBoard::genSlidingRookMoves(bool white_to_move, BitBoard::bb piece) const noexcept {
+inline BitBoard::bb BitBoard::genRookThreats(const bb& rook) const noexcept {
   bb empty_squares = ~boards[white] & ~boards[black];
   constexpr bb n_mask = ~r1, s_mask = ~r8;
 
-  bb n = piece;
+  bb n = rook;
   bb smeared_empty = empty_squares & n_mask;
   n |= smeared_empty & (n << north);
   smeared_empty &= (smeared_empty << north);
   n |= smeared_empty & (n << (2 * north));
   smeared_empty &= (smeared_empty << (2 * north));
   n |= smeared_empty & (n << (4 * north));
-  n = (n << north) & n_mask & ~boards[white_to_move];
+  n = (n << north) & n_mask;
 
-  bb s = piece;
+  bb s = rook;
   smeared_empty = empty_squares & n_mask;
   s |= smeared_empty & (s >> north);
   smeared_empty &= (smeared_empty >> north);
   s |= smeared_empty & (s >> (2 * north));
   smeared_empty &= (smeared_empty >> (2 * north));
   s |= smeared_empty & (s >> (4 * north));
-  s = (s >> north) & n_mask & ~boards[white_to_move];
+  s = (s >> north) & s_mask;
 
-  bb e = piece;
+  bb e = rook;
   smeared_empty = empty_squares;
   e |= smeared_empty & (e << east);
   smeared_empty &= (smeared_empty << east);
   e |= smeared_empty & (e << (2 * east));
   smeared_empty &= (smeared_empty << (2 * east));
   e |= smeared_empty & (e << (4 * east));
-  e = (e << east) & ~boards[white_to_move];
+  e = (e << east);
 
-  bb w = piece;
+  bb w = rook;
   smeared_empty = empty_squares & s_mask;
   w |= smeared_empty & (w >> east);
   smeared_empty &= (smeared_empty >> east);
   w |= smeared_empty & (w >> (2 * east));
   smeared_empty &= (smeared_empty >> (2 * east));
   w |= smeared_empty & (w >> (4 * east));
-  w = (w >> east) & ~boards[white_to_move];
+  w = (w >> east);
 
   return n | s | e | w;
 }
 
-vector<BitBoard::bb>
-  BitBoard::genQueenMoves(bool white_to_move) const noexcept {
+vector<BitBoard::bb> BitBoard::genQueenMoves(bool white_to_move) const noexcept {
   vector<bb> moves = getEachPiece(boards[queens] & boards[white_to_move]);
-  for (bb& queen : moves) {
-    queen = genSlidingRookMoves(white_to_move, queen)
-      | genSlidingDiagonals(white_to_move, queen);
-  }
+  bb valid_targets = ~boards[white];
+  for (bb& queen : moves) queen = genQueenThreats(queen) & valid_targets;
+  
   return moves;
+}
+inline BitBoard::bb BitBoard::genQueenThreats(const bb& queen) const noexcept {
+  return genBishopThreats(queen) | genRookThreats(queen);
 }
 
 BitBoard::bb BitBoard::genKingMoves(bool white_to_move) const noexcept {
-  bb moves = boards[kings] & boards[white_to_move];
+  bb king = boards[kings] & boards[white_to_move];
   bb valid_targets = ~boards[white_to_move];
+  return genKingThreats(king) & valid_targets;
+}
+inline BitBoard::bb BitBoard::genKingThreats(const bb& king) const noexcept {
+  bb moves = king;
 
   moves |= (moves << north) & ~r1;
+  moves |= (moves >> north) & ~r8;
   moves |= (moves << east);
   moves |= (moves >> east);
-  moves |= (moves >> north) & ~r8;
 
-  moves &= valid_targets;
   return moves;
+}
+
+BitBoard::bb BitBoard::genThreats(bool white_to_move) const noexcept {
+  white_to_move = !white_to_move;
+  bb threats = genPawnThreats(boards[pawns] & boards[white_to_move], white_to_move);
+  threats |= genKnightThreats(boards[knights] & boards[white_to_move]);
+  threats |= genBishopThreats(boards[bishops] & boards[white_to_move]);
+  threats |= genRookThreats(boards[rooks] & boards[white_to_move]);
+  threats |= genQueenThreats(boards[queens] & boards[white_to_move]);
+  threats |= genKingThreats(boards[kings] & boards[white_to_move]);
+  return threats;
 }
 
 std::string BitBoard::toString(bb board, char one) noexcept {

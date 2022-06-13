@@ -140,42 +140,43 @@ namespace Binary {
     // b) it avoids jmp instructions which is great
     // mostly a because the compiler would take care of b
 
+    numeric comp = 1;
+
     if constexpr (NUMERIC_BIT > 64) {  // 128-bit start here
-      if (x >= (1ULL << 64)) {
+      if (x >= (comp << 64)) {
         ms1b_idx += 64;
         x = x >> 64;
       }
     }
     if constexpr (NUMERIC_BIT > 32) {  // 64-bit start here
-      if (x >= (1ULL << 32)) {
+      if (x >= (comp << 32)) {
         ms1b_idx += 32;
         x = x >> 32;
       }
     }
     if constexpr (NUMERIC_BIT > 16) {  // 32-bit start here
-      if (x >= (1UL << 16)) {
+      if (x >= (comp << 16)) {
         ms1b_idx += 16;
         x = x >> 16;
       }
     }
     if constexpr (NUMERIC_BIT > 8) {   // 16-bit start here
-      if (x >= (1U << 8)) {
+      if (x >= (comp << 8)) {
         ms1b_idx += 8;
         x = x >> 8;
       }
     }
     if constexpr (NUMERIC_BIT > 4) {   // 8-bit start here
-      if (x >= (1U << 4)) {
+      if (x >= (comp << 4)) {
         ms1b_idx += 4;
         x = x >> 4;
       }
     }
-    if (x >= (1U << 2)) {
+    if (x >= (comp << 2)) {
       ms1b_idx += 2;
       x = x >> 2;
     }
-    if (x >= (1U
-      << 1)) {
+    if (x >= (comp << 1)) {
       ms1b_idx += 1;
       x = x >> 1;
     }
@@ -197,6 +198,6 @@ namespace Binary {
   #undef NUMERIC_BIT
   #undef INTEGRAL_BIT
   #undef U_INT_BIT
-};
+}
 
 #endif
