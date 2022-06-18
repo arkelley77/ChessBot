@@ -15,18 +15,6 @@ vector<BitBoard::bb> BitBoard::getEachPiece(BitBoard::bb board) noexcept {
   return pieces;
 }
 
-inline BitBoard::BitBoard(BitBoard& to_copy) noexcept {
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = to_copy.boards[i];
-  }
-}
-
-inline void BitBoard::clear() noexcept {
-  for (size_t i = 0; i < num_boards; ++i) {
-    boards[i] = 0;
-  }
-}
-
 void BitBoard::setUp() noexcept {
   clear();
 
@@ -72,7 +60,7 @@ void BitBoard::setUp(const char* fen) {
   }
 }
 
-inline void BitBoard::pushPiece(Piece::Name p, const bb& square) noexcept {
+void BitBoard::pushPiece(Piece::Name p, const bb& square) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] &= ~square; // empty the square in all bitboards
   }
@@ -108,18 +96,18 @@ inline void BitBoard::pushPiece(Piece::Name p, const bb& square) noexcept {
   }
 }
 
-inline void BitBoard::rmPiece(const bb& square) noexcept {
+void BitBoard::rmPiece(const bb& square) noexcept {
   for (size_t i = 0; i < num_boards; ++i) {
     boards[i] &= ~square;
   }
 }
 
-inline void BitBoard::replacePiece(Piece::Name p, const bb& square) noexcept {
+void BitBoard::replacePiece(Piece::Name p, const bb& square) noexcept {
   rmPiece(square);
   pushPiece(p, square);
 }
 
-inline BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
+BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
   bb moves = boards[pawns] & boards[white_to_move];
   bb double_moves;
   if (!moves) return moves;
@@ -145,7 +133,7 @@ inline BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
   moves |= double_moves;
   return moves;
 }
-inline vector<BitBoard::bb> BitBoard::genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept {
+vector<BitBoard::bb> BitBoard::genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept {
   vector<bb> moves(2);
   moves[0] = moves[1] = boards[pawns] & boards[white_to_move];
   if (!moves[0]) return moves;
@@ -167,12 +155,12 @@ inline vector<BitBoard::bb> BitBoard::genPawnCaptures(bool white_to_move, const 
   }
   return moves;
 }
-inline vector<BitBoard::bb> BitBoard::genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept {
+vector<BitBoard::bb> BitBoard::genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept {
   vector<bb> moves = genPawnCaptures(white_to_move, en_passant_square);
   moves.push_back(genPawnPushes(white_to_move));
   return moves;
 }
-inline BitBoard::bb BitBoard::genPawnThreats(const bb& pawn, bool white_to_move) const noexcept {
+BitBoard::bb BitBoard::genPawnThreats(const bb& pawn, bool white_to_move) const noexcept {
   return (white_to_move) ? ((pawn << n_east) | (pawn >> s_east))
     : ((pawn << s_east) | (pawn >> n_east));
 }
@@ -184,7 +172,7 @@ vector<BitBoard::bb> BitBoard::genKnightMoves(bool white_to_move) const noexcept
   
   return moves;
 }
-inline BitBoard::bb BitBoard::genKnightThreats(const bb& knight) const noexcept {
+BitBoard::bb BitBoard::genKnightThreats(const bb& knight) const noexcept {
   constexpr bb n_mask = ~r1, n_n_mask = n_mask & ~r2, s_mask = ~r8, s_s_mask = s_mask & ~r7;
   bb move_to = ((knight << n_n_east) | (knight >> s_s_east)) & n_n_mask; // 2 steps north
   move_to |= ((knight << s_s_east) | (knight >> n_n_east)) & s_s_mask; // 2 steps south
@@ -200,7 +188,7 @@ vector<BitBoard::bb> BitBoard::genBishopMoves(bool white_to_move) const noexcept
   
   return moves;
 }
-inline BitBoard::bb BitBoard::genBishopThreats(const bb& bishop) const noexcept {
+BitBoard::bb BitBoard::genBishopThreats(const bb& bishop) const noexcept {
   bb empty_squares = ~boards[white] & ~boards[black];
   constexpr bb n_mask = ~r1, s_mask = ~r8;
 
@@ -250,7 +238,7 @@ vector<BitBoard::bb> BitBoard::genRookMoves(bool white_to_move) const noexcept {
   
   return moves;
 }
-inline BitBoard::bb BitBoard::genRookThreats(const bb& rook) const noexcept {
+BitBoard::bb BitBoard::genRookThreats(const bb& rook) const noexcept {
   bb empty_squares = ~boards[white] & ~boards[black];
   constexpr bb n_mask = ~r1, s_mask = ~r8;
 
@@ -300,7 +288,7 @@ vector<BitBoard::bb> BitBoard::genQueenMoves(bool white_to_move) const noexcept 
   
   return moves;
 }
-inline BitBoard::bb BitBoard::genQueenThreats(const bb& queen) const noexcept {
+BitBoard::bb BitBoard::genQueenThreats(const bb& queen) const noexcept {
   return genBishopThreats(queen) | genRookThreats(queen);
 }
 
@@ -309,7 +297,7 @@ BitBoard::bb BitBoard::genKingMoves(bool white_to_move) const noexcept {
   bb valid_targets = ~boards[white_to_move];
   return genKingThreats(king) & valid_targets;
 }
-inline BitBoard::bb BitBoard::genKingThreats(const bb& king) const noexcept {
+BitBoard::bb BitBoard::genKingThreats(const bb& king) const noexcept {
   bb moves = king;
 
   moves |= (moves << north) & ~r1;
@@ -317,11 +305,24 @@ inline BitBoard::bb BitBoard::genKingThreats(const bb& king) const noexcept {
   moves |= (moves << east);
   moves |= (moves >> east);
 
-  return moves;
+  return moves & ~king;
+}
+BitBoard::bb BitBoard::genLegalKingMoves(bool white_to_move, bool castle_queenside, bool castle_kingside) const noexcept {
+  bb king = boards[kings] & boards[white_to_move];
+  bb valid_squares = ~boards[white_to_move] & ~genThreatsFrom(!white_to_move);
+  bb moves = genKingMoves(white_to_move) & valid_squares;
+  bb castle_moves = (moves << east) | (moves >> east);
+  if (white_to_move) {
+    castle_moves &= r1;
+  }
+  else {
+    castle_moves &= r8;
+  }
+  castle_moves &= valid_squares;
+  return moves | castle_moves;
 }
 
-BitBoard::bb BitBoard::genThreats(bool white_to_move) const noexcept {
-  white_to_move = !white_to_move;
+BitBoard::bb BitBoard::genThreatsFrom(bool white_to_move) const noexcept {
   bb threats = genPawnThreats(boards[pawns] & boards[white_to_move], white_to_move);
   threats |= genKnightThreats(boards[knights] & boards[white_to_move]);
   threats |= genBishopThreats(boards[bishops] & boards[white_to_move]);
@@ -348,7 +349,7 @@ std::string BitBoard::toString(bb board, char one) noexcept {
 std::string BitBoard::toString() const noexcept {
   std::string buf(71, ' '); // 64 pieces + 7 newlines = 71 chars
   const char piece_names[2][6] = { { 'p', 'n', 'b', 'r', 'q', 'k' },
-                                   { 'P', 'N', 'B', 'R', 'Q', 'K' } };
+                                      { 'P', 'N', 'B', 'R', 'Q', 'K'}};
   for (size_t i = 8; i < 71; i += 9) buf[i] = '\n';
 
   for (size_t i = pawns; i < num_boards; ++i) {

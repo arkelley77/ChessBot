@@ -11,19 +11,31 @@
 #include <string>
 #include <sstream>
 
-#include "piece.h"
-#include "myModules/binary/binary.h"
-#include "bitboard.h" // for BitBoard::bb
+#include "../piece/piece.h"
 
 class MailBox {
 public:
   inline MailBox() noexcept { clear(); }
-  inline MailBox(const Piece::Name board[]) noexcept;
-  inline MailBox(const MailBox& to_copy) noexcept;
+  inline MailBox(const Piece::Name board[]) noexcept {
+    for (size_t i = 0; i < 64; ++i) {
+      this->board[i] = board[i];
+    }
+  }
+  inline MailBox(const MailBox& to_copy) noexcept {
+    for (size_t i = 0; i < 64; ++i) {
+      board[i] = to_copy.board[i];
+    }
+  }
 
-  constexpr inline void clear() noexcept;
+  constexpr inline void clear() noexcept {
+    for (size_t i = 0; i < 64; ++i) {
+      board[i] = Piece::square;
+    }
+  }
 
-  inline void setUp();
+  inline void setUp() {
+    setUp("rnbqkbnr/pppppppp/////PPPPPPPP/RNBQKBNR ");
+  }
   void setUp(const char* fen);
   void setUp(const std::string& fen) { setUp(fen.c_str()); }
 
@@ -37,10 +49,6 @@ public:
     Piece::Name old_piece = getPiece(idx);
     pushPiece(new_piece, idx);
     return old_piece;
-  }
-  // gets the piece at the MS1b of square
-  constexpr inline Piece::Name getPiece(const BitBoard::bb& square) const noexcept {
-    return getPiece(Binary::indexOfMS1B(square));
   }
 
   std::string toString() const noexcept;

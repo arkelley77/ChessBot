@@ -1,25 +1,6 @@
 #include "mailbox.h"
 
-inline MailBox::MailBox(const Piece::Name board[]) noexcept {
-  for (size_t i = 0; i < 64; ++i) {
-    this->board[i] = board[i];
-  }
-}
-inline MailBox::MailBox(const MailBox& to_copy) noexcept {
-  for (size_t i = 0; i < 64; ++i) {
-    board[i] = to_copy.board[i];
-  }
-}
 
-constexpr inline void MailBox::clear() noexcept {
-  for (size_t i = 0; i < 64; ++i) {
-    board[i] = Piece::square;
-  }
-}
-
-inline void MailBox::setUp() {
-  setUp("rnbqkbnr/pppppppp/////PPPPPPPP/RNBQKBNR ");
-}
 
 void MailBox::setUp(const char* fen) {
 #define THROW_INVALID_FEN throw std::invalid_argument("Invalid FEN")

@@ -15,8 +15,9 @@
 #include <sstream>
 #include <vector>
 
-#include "myModules/binary/binary.h"
-#include "piece.h"
+#include "../../../include/myModules/binary/binary.h"
+#include "../piece/piece.h"
+#include "../move.h"
 
 class BitBoard {
 public: // type definitions & enums
@@ -163,10 +164,18 @@ public: // static methods
 
 public: // instance methods
   inline BitBoard() noexcept { clear(); };
-  inline BitBoard(BitBoard& to_copy) noexcept;
+  inline BitBoard(BitBoard& to_copy) noexcept {
+    for (size_t i = 0; i < num_boards; ++i) {
+      boards[i] = to_copy.boards[i];
+    }
+  }
   
   // clear the BitBoard
-  inline void clear() noexcept;
+  inline void clear() noexcept {
+    for (size_t i = 0; i < num_boards; ++i) {
+      boards[i] = 0;
+    }
+  }
 
   // set up the BitBoard to match the starting position for chess
   void setUp() noexcept;
@@ -179,37 +188,43 @@ public: // instance methods
   // Place the desired piece on the board
   // ! Ignores any piece that may already be there, could corrupt the board
   // ! Undefined behavior when p is Piece::Name::square
-  inline void pushPiece(Piece::Name p, const bb& square) noexcept;
+  void pushPiece(Piece::Name p, const bb& square) noexcept;
   // Removes any piece from the board square specified
-  inline void rmPiece(const bb& square) noexcept;
+  void rmPiece(const bb& square) noexcept;
   // Removes a piece from the board square specified, then
   // replaces it with the piece specified
-  inline void replacePiece(Piece::Name p, const bb& square) noexcept;
+  void replacePiece(Piece::Name p, const bb& square) noexcept;
   
   // generates the forward moves for the pawns
-  inline bb genPawnPushes(bool white_to_move) const noexcept;
-  inline std::vector<bb> genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept;
-  inline std::vector<bb> genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept;
-  inline bb genPawnThreats(const bb& pawn, bool white_to_move) const noexcept;
+  bb genPawnPushes(bool white_to_move) const noexcept;
+  std::vector<Move> genPawnPushMoves(bool white_to_move) const noexcept;
+  std::vector<bb> genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept;
+  std::vector<bb> genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept;
+  bb genPawnThreats(const bb& pawn, bool white_to_move) const noexcept;
 
   std::vector<bb> genKnightMoves(bool white_to_move) const noexcept;
-  inline bb genKnightThreats(const bb& knight) const noexcept;
+  bb genKnightThreats(const bb& knight) const noexcept;
 
   std::vector<bb> genBishopMoves(bool white_to_move) const noexcept;
-  inline bb genBishopThreats(const bb& bishop) const noexcept;
+  bb genBishopThreats(const bb& bishop) const noexcept;
 
   std::vector<bb> genRookMoves(bool white_to_move) const noexcept;
-  inline bb genRookThreats(const bb& rook) const noexcept;
+  bb genRookThreats(const bb& rook) const noexcept;
 
   std::vector<bb> genQueenMoves(bool white_move) const noexcept;
-  inline bb genQueenThreats(const bb& queen) const noexcept;
+  bb genQueenThreats(const bb& queen) const noexcept;
 
+  bb genKingThreats(const bb& king) const noexcept;
   bb genKingMoves(bool white_to_move) const noexcept;
-  inline bb genKingThreats(const bb& king) const noexcept;
+  // generates king moves, accounting for check
+  bb genLegalKingMoves(bool white_to_move, bool castle_queenside, bool castle_kingside) const noexcept;
 
   // used to determine check
-  bb genThreats(bool white_to_move) const noexcept;
-
+  bb genThreatsFrom(bool white_to_move) const noexcept;
+  inline bool isInCheck(bool white_to_move) const noexcept {
+    return boards[kings] & boards[white_to_move] & genThreatsFrom(!white_to_move);
+  }
+  
   // convert the entire board representation to a string which can be
   // easily printed out, with the proper piece names
   std::string toString() const noexcept;
