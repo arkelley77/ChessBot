@@ -1,6 +1,8 @@
 #include "bitboard.h"
 
 using std::vector;
+using namespace Binary;
+using namespace Indexing;
 
 vector<BitBoard::bb> BitBoard::getEachPiece(BitBoard::bb board) noexcept {
   // the max # of pieces of a given type is 10
@@ -8,9 +10,9 @@ vector<BitBoard::bb> BitBoard::getEachPiece(BitBoard::bb board) noexcept {
   // and promote all pawns to rooks
   vector<bb> pieces;
   while (board) {
-    bb piece = Binary::isolateMS1B(board);
+    bb piece = isolateMS1B(board);
     pieces.push_back(piece);
-    board ^= piece;
+    board &= ~piece;
   }
   return pieces;
 }
@@ -44,17 +46,17 @@ void BitBoard::setUp(const char* fen) {
     if (fen[i] == '\0') THROW_INVALID_FEN; // fen ended early
     else if ('0' < fen[i] && fen[i] <= '8') {
       // skip columns according to the specified number
-      col = col << ((fen[i] - '0') * east);
+      shift(col, (fen[i] - '0') * east);
     }
     else if (fen[i] == '/') {
       // skip to the next row
-      row = row >> north;
+      shift(row, south);
       col = a;
     }
     else if (Piece::isValidName(fen[i])) {
       if (!(col & row)) THROW_INVALID_FEN; // too many board squares
       pushPiece(static_cast<Piece::Name>(fen[i]), col & row);
-      col = col << east;  // move to the next square
+      shift(col, east);  // move to the next square
     }
     else THROW_INVALID_FEN; // not sure why this would be triggered
   }
@@ -107,6 +109,28 @@ void BitBoard::replacePiece(Piece::Name p, const bb& square) noexcept {
   pushPiece(p, square);
 }
 
+BitBoard::bb BitBoard::genPawnSingles(bool white_to_move) const noexcept {
+  bb moves = boards[pawns] & boards[white_to_move];
+  if (!moves) return moves;
+
+  constexpr bb n_mask = ~r1, s_mask = ~r8;
+  bb valid_targets = ~boards[white] & ~boards[black];
+
+  if (white_to_move) moves = shifted(moves, north) & valid_targets & n_mask;
+  else moves = shifted(moves, south) & valid_targets & s_mask;
+  return moves;
+}
+BitBoard::bb BitBoard::genPawnDoubles(bool white_to_move) const noexcept {
+  bb moves = genPawnSingles(white_to_move);
+  if (!moves) return moves;
+
+  bb valid_targets = ~boards[white] & ~boards[black];
+
+  if (white_to_move) moves = shifted(moves & r3, north) & valid_targets;
+  else moves = shifted(moves & r6, south) & valid_targets;
+  return moves;
+}
+
 BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
   bb moves = boards[pawns] & boards[white_to_move];
   bb double_moves;
@@ -114,25 +138,55 @@ BitBoard::bb BitBoard::genPawnPushes(bool white_to_move) const noexcept {
 
   constexpr bb n_mask = ~r1, s_mask = ~r8;
   bb valid_targets = ~boards[white] & ~boards[black];
+  direction dir = (white_to_move) ? north : south;
+  bb dbl_row = (white_to_move) ? r3 : r6;
 
-  if (white_to_move) {
-    // generate single moves
-    moves = (moves << north) & valid_targets & n_mask;
+  // generate single moves
+  moves = shifted(moves, dir) & valid_targets;
 
-    // generate double moves
-    double_moves = ((moves & r3) << north); // don't have to mask r1 bc of the "& r3"
-  }
-  else {
-    moves = (moves >> north) & s_mask;
-    moves = moves & valid_targets;
-
-    double_moves = ((moves & r6) >> north);
-  }
-  double_moves &= valid_targets;
+  // generate double moves
+  double_moves = shifted(moves & dbl_row, north); // don't have to mask r1 bc of the "& r3"
   
-  moves |= double_moves;
+  moves |= double_moves & valid_targets;
   return moves;
 }
+
+vector<Move> BitBoard::genPawnPushMoves(bool white_to_move) const noexcept {
+  bb singles = genPawnSingles(white_to_move);
+  bb doubles = genPawnDoubles(white_to_move);
+  vector<Move> moves;
+  bb enemy_pawns = boards[pawns] & boards[!white_to_move];
+  bb en_passant = (shifted(doubles, west) | shifted(doubles, east)) & enemy_pawns;
+
+  direction backwards = (white_to_move) ? south : north;
+
+  for (auto file : { a, b, c, d, e, f, g, h }) {
+    bb single_target = singles & file;
+    bb double_target = doubles & file;
+    if (!single_target) continue;
+
+    int to_one = indexOfMS1B(single_target);
+    int from = to_one + backwards;
+    if (single_target & r8) {
+      moves.push_back(Move(from, to_one, Piece::queen, Move::promo));
+      moves.push_back(Move(from, to_one, Piece::rook, Move::promo));
+      moves.push_back(Move(from, to_one, Piece::bishop, Move::promo));
+      moves.push_back(Move(from, to_one, Piece::knight, Move::promo));
+      continue;
+    }
+    moves.push_back(Move(from, to_one));
+    if (double_target) {
+      if (en_passant & file) {
+        // set the en passant flag if the pawn can be captured en passant
+        moves.push_back(Move(from, indexOfMS1B(double_target), Move::en_passant));
+        continue;
+      }
+      moves.push_back(Move(from, indexOfMS1B(double_target)));
+    }
+  }
+  return moves;
+}
+
 vector<BitBoard::bb> BitBoard::genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept {
   vector<bb> moves(2);
   moves[0] = moves[1] = boards[pawns] & boards[white_to_move];
@@ -146,23 +200,73 @@ vector<BitBoard::bb> BitBoard::genPawnCaptures(bool white_to_move, const bb& en_
   // for a pawn to be on its destination square
 
   if (white_to_move) {
-    moves[0] = (moves[0] << n_east) & valid_targets & n_mask;
-    moves[1] = (moves[1] >> s_east) & valid_targets & n_mask;
+    moves[0] = (shifted(moves[0], n_east)) & valid_targets & n_mask;
+    moves[1] = (shifted(moves[1], n_west)) & valid_targets & n_mask;
   }
   else {
-    moves[0] = (moves[0] << s_east) & valid_targets & s_mask;
-    moves[1] = (moves[1] >> n_east) & valid_targets & s_mask;
+    moves[0] = (shifted(moves[0], s_east)) & valid_targets & s_mask;
+    moves[1] = (shifted(moves[1], s_west)) & valid_targets & s_mask;
   }
   return moves;
 }
+
+vector<Move> BitBoard::genPawnCapMoves(bool white_to_move, int en_passant_target) const noexcept {
+  vector<bb> caps = genPawnCaptures(white_to_move, 1ULL << en_passant_target);
+  vector<Move> moves;
+
+  if (white_to_move) {
+    // genPawnCaptures() goes east first
+    for (auto file : { b, c, d, e, f, g, h }) {
+      bb target = caps[0] & file;
+      if (!target) continue;
+
+      int from_square = indexOfMS1B(shifted(target, s_west));
+      int to_square = indexOfMS1B(target);
+
+      moves.push_back(Move(from_square, to_square, Move::capture));
+    }
+    for (auto file : { a, b, c, d, e, f, g }) {
+      bb target = caps[1] & file;
+      if (!target) continue;
+
+      int from_square = indexOfMS1B(shifted(target, s_east));
+      int to_square = indexOfMS1B(target);
+
+      moves.push_back(Move(from_square, to_square, Move::capture));
+    }
+  }
+  else {
+    // genPawnCaptures() goes east first
+    for (auto file : { b, c, d, e, f, g, h }) {
+      bb target = caps[0] & file;
+      if (!target) continue;
+
+      int from_square = indexOfMS1B(shifted(target, n_west));
+      int to_square = indexOfMS1B(target);
+
+      moves.push_back(Move(from_square, to_square, Move::capture));
+    }
+    for (auto file : { a, b, c, d, e, f, g }) {
+      bb target = caps[1] & file;
+      if (!target) continue;
+
+      int from_square = indexOfMS1B(shifted(target, n_east));
+      int to_square = indexOfMS1B(target);
+
+      moves.push_back(Move(from_square, to_square, Move::capture));
+    }
+  }
+  return moves;
+}
+
 vector<BitBoard::bb> BitBoard::genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept {
   vector<bb> moves = genPawnCaptures(white_to_move, en_passant_square);
   moves.push_back(genPawnPushes(white_to_move));
   return moves;
 }
 BitBoard::bb BitBoard::genPawnThreats(const bb& pawn, bool white_to_move) const noexcept {
-  return (white_to_move) ? ((pawn << n_east) | (pawn >> s_east))
-    : ((pawn << s_east) | (pawn >> n_east));
+  return (white_to_move) ? (shifted(pawn, n_east) | shifted(pawn, n_west))
+    : (shifted(pawn, s_east) | shifted(pawn, s_west));
 }
 
 vector<BitBoard::bb> BitBoard::genKnightMoves(bool white_to_move) const noexcept {
@@ -174,10 +278,10 @@ vector<BitBoard::bb> BitBoard::genKnightMoves(bool white_to_move) const noexcept
 }
 BitBoard::bb BitBoard::genKnightThreats(const bb& knight) const noexcept {
   constexpr bb n_mask = ~r1, n_n_mask = n_mask & ~r2, s_mask = ~r8, s_s_mask = s_mask & ~r7;
-  bb move_to = ((knight << n_n_east) | (knight >> s_s_east)) & n_n_mask; // 2 steps north
-  move_to |= ((knight << s_s_east) | (knight >> n_n_east)) & s_s_mask; // 2 steps south
-  move_to |= ((knight << e_n_east) | (knight >> e_s_east)) & n_mask; // 1 step north
-  move_to |= ((knight << e_s_east) | (knight >> e_n_east)) & s_mask; // 1 step south
+  bb move_to = (shifted(knight, n_n_east) | shifted(knight, n_n_west)) & n_n_mask; // 2 steps north
+  move_to |= (shifted(knight, s_s_east) | shifted(knight, s_s_west)) & s_s_mask; // 2 steps south
+  move_to |= (shifted(knight, e_n_east) | shifted(knight, w_n_west)) & n_mask; // 1 step north
+  move_to |= (shifted(knight, e_s_east) | shifted(knight, w_s_west)) & s_mask; // 1 step south
   return move_to;
 }
 
@@ -192,41 +296,17 @@ BitBoard::bb BitBoard::genBishopThreats(const bb& bishop) const noexcept {
   bb empty_squares = ~boards[white] & ~boards[black];
   constexpr bb n_mask = ~r1, s_mask = ~r8;
 
-  bb n_e = bishop;
-  bb smeared_empty = empty_squares & n_mask;
-  n_e |= smeared_empty & (n_e << n_east);
-  smeared_empty &= (smeared_empty << n_east);
-  n_e |= smeared_empty & (n_e << (2 * n_east));
-  smeared_empty &= (smeared_empty << (2 * n_east));
-  n_e |= smeared_empty & (n_e << (4 * n_east));
-  n_e = (n_e << n_east) & n_mask;
+  bb n_e = obstructedFill(bishop, empty_squares & n_mask, n_east);
+  n_e = shifted(n_e, n_east) & n_mask;
 
-  bb n_w = bishop;
-  smeared_empty = empty_squares & n_mask;
-  n_w |= smeared_empty & (n_w >> s_east);
-  smeared_empty &= (smeared_empty >> s_east);
-  n_w |= smeared_empty & (n_w >> (2 * s_east));
-  smeared_empty &= (smeared_empty >> (2 * s_east));
-  n_w |= smeared_empty & (n_w >> (4 * s_east));
-  n_w = (n_w >> s_east) & n_mask;
+  bb n_w = obstructedFill(bishop, empty_squares & n_mask, n_west);
+  n_w = shifted(n_w, n_west) & n_mask;
 
-  bb s_e = bishop;
-  smeared_empty = empty_squares & s_mask;
-  s_e |= smeared_empty & (s_e << s_east);
-  smeared_empty &= (smeared_empty << s_east);
-  s_e |= smeared_empty & (s_e << (2 * s_east));
-  smeared_empty &= (smeared_empty << (2 * s_east));
-  s_e |= smeared_empty & (s_e << (4 * s_east));
-  s_e = (s_e << s_east) & s_mask;
+  bb s_e = obstructedFill(bishop, empty_squares & s_mask, s_east);
+  s_e = shifted(s_e, s_east) & s_mask;
 
-  bb s_w = bishop;
-  smeared_empty = empty_squares & s_mask;
-  s_w |= smeared_empty & (s_w >> n_east);
-  smeared_empty &= (smeared_empty >> n_east);
-  s_w |= smeared_empty & (s_w >> (2 * n_east));
-  smeared_empty &= (smeared_empty >> (2 * n_east));
-  s_w |= smeared_empty & (s_w >> (4 * n_east));
-  s_w = (s_w >> n_east) & s_mask;
+  bb s_w = obstructedFill(bishop, empty_squares & s_mask, s_west);
+  s_w = shifted(s_w, s_west) & s_mask;
 
   return n_e | n_w | s_e | s_w;
 }
@@ -242,41 +322,17 @@ BitBoard::bb BitBoard::genRookThreats(const bb& rook) const noexcept {
   bb empty_squares = ~boards[white] & ~boards[black];
   constexpr bb n_mask = ~r1, s_mask = ~r8;
 
-  bb n = rook;
-  bb smeared_empty = empty_squares & n_mask;
-  n |= smeared_empty & (n << north);
-  smeared_empty &= (smeared_empty << north);
-  n |= smeared_empty & (n << (2 * north));
-  smeared_empty &= (smeared_empty << (2 * north));
-  n |= smeared_empty & (n << (4 * north));
-  n = (n << north) & n_mask;
+  bb n = obstructedFill(rook, empty_squares & n_mask, north);
+  n = shifted(n, north) & n_mask;
 
-  bb s = rook;
-  smeared_empty = empty_squares & n_mask;
-  s |= smeared_empty & (s >> north);
-  smeared_empty &= (smeared_empty >> north);
-  s |= smeared_empty & (s >> (2 * north));
-  smeared_empty &= (smeared_empty >> (2 * north));
-  s |= smeared_empty & (s >> (4 * north));
-  s = (s >> north) & s_mask;
+  bb s = obstructedFill(rook, empty_squares & s_mask, south);
+  s = shifted(s, north) & s_mask;
 
-  bb e = rook;
-  smeared_empty = empty_squares;
-  e |= smeared_empty & (e << east);
-  smeared_empty &= (smeared_empty << east);
-  e |= smeared_empty & (e << (2 * east));
-  smeared_empty &= (smeared_empty << (2 * east));
-  e |= smeared_empty & (e << (4 * east));
-  e = (e << east);
+  bb e = obstructedFill(rook, empty_squares, east);
+  shift(e, east);
 
-  bb w = rook;
-  smeared_empty = empty_squares & s_mask;
-  w |= smeared_empty & (w >> east);
-  smeared_empty &= (smeared_empty >> east);
-  w |= smeared_empty & (w >> (2 * east));
-  smeared_empty &= (smeared_empty >> (2 * east));
-  w |= smeared_empty & (w >> (4 * east));
-  w = (w >> east);
+  bb w = obstructedFill(rook, empty_squares, west);
+  shift(w, west);
 
   return n | s | e | w;
 }
@@ -300,10 +356,10 @@ BitBoard::bb BitBoard::genKingMoves(bool white_to_move) const noexcept {
 BitBoard::bb BitBoard::genKingThreats(const bb& king) const noexcept {
   bb moves = king;
 
-  moves |= (moves << north) & ~r1;
-  moves |= (moves >> north) & ~r8;
-  moves |= (moves << east);
-  moves |= (moves >> east);
+  moves |= shifted(moves, north) & ~r1;
+  moves |= shifted(moves, south) & ~r8;
+  moves |= shifted(moves, east);
+  moves |= shifted(moves, west);
 
   return moves & ~king;
 }
@@ -311,7 +367,7 @@ BitBoard::bb BitBoard::genLegalKingMoves(bool white_to_move, bool castle_queensi
   bb king = boards[kings] & boards[white_to_move];
   bb valid_squares = ~boards[white_to_move] & ~genThreatsFrom(!white_to_move);
   bb moves = genKingMoves(white_to_move) & valid_squares;
-  bb castle_moves = (moves << east) | (moves >> east);
+  bb castle_moves = shifted(moves, east) | shifted(moves, west);
   if (white_to_move) {
     castle_moves &= r1;
   }
@@ -340,7 +396,7 @@ std::string BitBoard::toString(bb board, char one) noexcept {
     size_t row = static_cast<size_t>(8) - getRow(board) - 1;
     size_t col = getCol(board);
     buf[row * 9 + col] = one; // has to be (row * 9) because of the newlines
-    board ^= Binary::isolateMS1B(board);
+    board &= ~isolateMS1B(board);
   }
 
   return buf;
@@ -357,14 +413,14 @@ std::string BitBoard::toString() const noexcept {
     while (board) {
       size_t row = static_cast<size_t>(8) - getRow(board) - 1;
       size_t col = getCol(board);
-      if (Binary::isolateMS1B(board) & boards[white]) {
+      if (isolateMS1B(board) & boards[white]) {
         // has to be (row * 9) because of the newlines
         buf[row * 9 + col] = piece_names[white][i - pawns];
       }
       else {
         buf[row * 9 + col] = piece_names[black][i - pawns];
       }
-      board ^= Binary::isolateMS1B(board);
+      board &= ~isolateMS1B(board);
     }
   }
 

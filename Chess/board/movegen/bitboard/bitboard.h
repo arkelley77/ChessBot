@@ -17,7 +17,8 @@
 
 #include "../../../include/myModules/binary/binary.h"
 #include "../piece/piece.h"
-#include "../move.h"
+#include "../move/move.h"
+#include "../indexing.h"
 
 class BitBoard {
 public: // type definitions & enums
@@ -98,17 +99,6 @@ public: // type definitions & enums
   constexpr static inline bb light_squares = 0x55AA55AA55AA55AA;
   constexpr static inline bb dark_squares = 0xAA55AA55AA55AA55;
 
-  enum Direction : int {
-    n_west = -7, north = 1,  n_east = 9,
-    west = -8,                 east = 8,
-    s_west = -9, south = -1, s_east = 7,
-
-        n_n_west = -6, n_n_east = 10,
-    w_n_west = -15,        e_n_east = 17,
-    w_s_west = -17,        e_s_east = 15,
-        s_s_west = -10, s_s_east = 6,
-  };
-
 public: // static methods
   constexpr static inline bool isOnSquare(const bb& piece, const Square& sq) noexcept {
     return piece & sq;
@@ -145,15 +135,21 @@ public: // static methods
   constexpr static inline void setBit(bb& board, int bit_idx) noexcept {
     board |= idxToBoard(bit_idx);
   }
-  constexpr static inline bool getBit(const bb& board, int bit_idx) {
+  constexpr static inline bool getBit(const bb& board, int bit_idx) noexcept {
     return board & idxToBoard(bit_idx);
   }
 
-  constexpr static inline bb shiftOne(const bb& board, Direction dir) noexcept {
-    return (dir < 0) ? (board >> -dir) : (board << dir);
-  }
-  constexpr static inline bb smearOne(const bb& board, Direction dir) noexcept {
-    return shiftOne(board, dir) | board;
+  constexpr static inline bb obstructedFill(bb board, bb available_squares, Indexing::direction dir) noexcept {
+    using Binary::shifted;
+    // this method not only casts a ray (in the board variable),
+    // it also casts a shadow (in the available_squares variable),
+    // allowing for fewer operations to be performed overall.
+    board |= available_squares & shifted(board, dir);
+    available_squares &= shifted(available_squares, dir);
+    board |= available_squares & shifted(board, 2 * dir);
+    available_squares &= shifted(available_squares, 2 * dir);
+    board |= available_squares & shifted(board, 4 * dir);
+    return board;
   }
 
   static std::vector<bb> getEachPiece(bb board) noexcept;
@@ -196,8 +192,39 @@ public: // instance methods
   void replacePiece(Piece::Name p, const bb& square) noexcept;
   
   // generates the forward moves for the pawns
-  bb genPawnPushes(bool white_to_move) const noexcept;
   std::vector<Move> genPawnPushMoves(bool white_to_move) const noexcept;
+  std::vector<Move> genPawnCapMoves(bool white_to_move, int en_passant_target) const noexcept;
+
+  // used to determine check
+  bb genThreatsFrom(bool white_to_move) const noexcept;
+  inline bool isInCheck(bool white_to_move) const noexcept {
+    return boards[kings] & boards[white_to_move] & genThreatsFrom(!white_to_move);
+  }
+  
+  // convert the entire board representation to a string which can be
+  // easily printed out, with the proper piece names
+  std::string toString() const noexcept;
+
+  friend std::ostream& operator<<(std::ostream& os, const BitBoard& board) {
+    return os << board.toString();
+  }
+//private:
+  constexpr static inline size_t num_boards = 8;
+  bb boards[num_boards];
+  // the index in boards where each item lies
+  // black & white contain all black/white pieces,
+  //    regardless of type
+  // & each piece board contains all pieces of that type,
+  //    regardless of color
+  enum IDX : size_t {
+    black = 0, white = 1,
+    pawns = 2, knights = 3, bishops = 4,
+    rooks = 5, queens = 6, kings = 7,
+  };
+
+  bb genPawnSingles(bool white_to_move) const noexcept;
+  bb genPawnDoubles(bool white_to_move) const noexcept;
+  bb genPawnPushes(bool white_to_move) const noexcept;
   std::vector<bb> genPawnCaptures(bool white_to_move, const bb& en_passant_square) const noexcept;
   std::vector<bb> genPawnMoves(bool white_to_move, const bb& en_passant_square) const noexcept;
   bb genPawnThreats(const bb& pawn, bool white_to_move) const noexcept;
@@ -218,33 +245,6 @@ public: // instance methods
   bb genKingMoves(bool white_to_move) const noexcept;
   // generates king moves, accounting for check
   bb genLegalKingMoves(bool white_to_move, bool castle_queenside, bool castle_kingside) const noexcept;
-
-  // used to determine check
-  bb genThreatsFrom(bool white_to_move) const noexcept;
-  inline bool isInCheck(bool white_to_move) const noexcept {
-    return boards[kings] & boards[white_to_move] & genThreatsFrom(!white_to_move);
-  }
-  
-  // convert the entire board representation to a string which can be
-  // easily printed out, with the proper piece names
-  std::string toString() const noexcept;
-
-  friend std::ostream& operator<<(std::ostream& os, const BitBoard& board) {
-    return os << board.toString();
-  }
-private:
-  constexpr static inline size_t num_boards = 8;
-  bb boards[num_boards];
-  // the index in boards where each item lies
-  // black & white contain all black/white pieces,
-  //    regardless of type
-  // & each piece board contains all pieces of that type,
-  //    regardless of color
-  enum IDX : size_t {
-    black = 0, white = 1,
-    pawns = 2, knights = 3, bishops = 4,
-    rooks = 5, queens = 6, kings = 7,
-  };
 };
 
 #endif // BITBOARD_H

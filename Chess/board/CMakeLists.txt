@@ -1,5 +1,4 @@
-add_subdirectory ("piece")
-add_subdirectory ("bitboard")
-add_subdirectory ("mailbox")
+add_subdirectory ("bitboards")
+add_subdirectory ("movegen")
 
-add_library (Board board.h board.cpp "move.h")
+add_library (Board "board.cpp")

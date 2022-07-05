@@ -13,13 +13,13 @@ set (CMAKE_CXX_STANDARD_REQUIRED True)
 add_subdirectory ("board")
 
 # Add source to this project's executable.
-add_executable (Chess Chess.h Chess.cpp)
+add_executable (Chess Chess.cpp )
 
 # TODO: Add tests and install targets if needed.
 
 
 # Link libraries
-target_link_libraries(Chess PUBLIC Board Bitboard)
+target_link_libraries(Chess PUBLIC Board Bitboards Movegen)
 
 
 target_include_directories(Chess PUBLIC

@@ -4,6 +4,9 @@
 #include <iostream>
 #include <array>
 
-#include "bitboard.h"
+#include "board/bitboards/bitboards.h"
+#include "board/board.h"
+
+#include "../include/myModules/binary/binary.h"
 
 #endif // MAIN_H

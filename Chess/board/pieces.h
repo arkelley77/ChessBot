@@ -60,6 +60,9 @@ namespace Piece {
   constexpr inline Type getType(Name p) noexcept {
     return static_cast<Type>(tolower(static_cast<char>(p)));
   }
+  constexpr inline Name makePiece(Type t, bool white) {
+    return static_cast<Name>((white) ? toupper(static_cast<char>(t)) : t);
+  }
 
   constexpr inline bool isPawn(Name p) noexcept { return getType(p) == pawn; }
   constexpr inline bool isKing(Name p) noexcept { return getType(p) == king; }

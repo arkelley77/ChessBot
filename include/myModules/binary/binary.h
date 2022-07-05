@@ -9,54 +9,39 @@
 #include <type_traits>
 
 namespace Binary {
-  // template <class numeric, class u_int>
+  using namespace std;
+  template<class Lambda, class integral, integral = (Lambda{}(), 0) >
+  constexpr static bool is_constexpr(Lambda) { return true; }
+  constexpr static bool is_constexpr(...) { return false; }
 
-  #define VALID_NUMERIC std::is_arithmetic<numeric>
-  #define VALID_INTEGRAL std::conjunction<std::disjunction<std::is_integral<integral>, std::is_enum<integral>>, std::negation<std::is_pointer<integral>>>
-  #define VALID_U_INT std::conjunction<std::is_integral<u_int>, std::is_unsigned<u_int>, std::negation<std::is_pointer<u_int>>>
+  #define VALID_NUMERIC is_arithmetic<numeric>
+  #define VALID_INTEGRAL conjunction<disjunction<is_integral<integral>, is_enum<integral>>, negation<is_pointer<integral>>>
+  #define VALID_U_INT conjunction<is_integral<u_int>, is_unsigned<u_int>, negation<is_pointer<u_int>>>
 
   #define NUMERIC_BIT (sizeof(numeric)*CHAR_BIT)
   #define INTEGRAL_BIT (sizeof(integral)*CHAR_BIT)
   #define U_INT_BIT (sizeof(u_int)*CHAR_BIT)
 
-  // Shifts x left by num_bits bits
-  template <class numeric, class integral>
-  constexpr inline std::enable_if_t<std::conjunction_v<VALID_NUMERIC, VALID_INTEGRAL>,
-    void> shift(numeric &x, integral num_bits) noexcept {
-    if (num_bits > 0) {
-      x = x << num_bits;
-    }
-    else if (num_bits < 0) {
-      x = x >> -num_bits;
-    }
-  }
-  template <class numeric, class integral>
-  constexpr inline std::enable_if_t<std::conjunction_v<VALID_NUMERIC, VALID_INTEGRAL>,
-    numeric> shifted(numeric x, integral num_bits) noexcept {
-    shift(x, num_bits);
-    return x;
-  }
-
   // Rotates x right by 1 bit
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     void> ror(numeric* x) noexcept {
     *x = (*x >> 1) | (*x << (NUMERIC_BIT - 1));
   }
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     numeric> ror(numeric x) noexcept {
     ror(&x);
     return x;
   }
   // Rotates x bitwise right by num_bits bits
   template <class numeric, class u_int>
-  constexpr inline std::enable_if_t<std::conjunction_v<VALID_NUMERIC, VALID_U_INT>,
+  constexpr inline enable_if_t<conjunction_v<VALID_NUMERIC, VALID_U_INT>,
     void> ror(numeric& x, u_int num_bits) {
     *x = (*x >> num_bits) | (*x << (NUMERIC_BIT - num_bits));
   }
   template <class numeric, class u_int>
-  constexpr inline std::enable_if_t<std::conjunction_v<VALID_NUMERIC, VALID_U_INT>,
+  constexpr inline enable_if_t<conjunction_v<VALID_NUMERIC, VALID_U_INT>,
     numeric> ror(numeric x, u_int num_bits) {
     ror(&x, num_bits);
     return x;
@@ -64,23 +49,23 @@ namespace Binary {
 
   // Rotates x bitwise left by 1 bit
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     void> rol(numeric* x) noexcept {
     *x = (*x << 1) | (*x >> (NUMERIC_BIT - 1));
   }
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     void> rol(numeric& x) noexcept {
     rol(&x);
     return x;
   }
   template <class numeric, class u_int>
-  constexpr inline std::enable_if_t<std::conjunction_v<VALID_NUMERIC, VALID_U_INT>,
+  constexpr inline enable_if_t<conjunction_v<VALID_NUMERIC, VALID_U_INT>,
     void> rol(numeric* x, u_int num_bits) noexcept {
     *x = (*x << num_bits) | (*x >> (NUMERIC_BIT - num_bits));
   }
   template <class numeric, class u_int>
-  constexpr inline std::enable_if_t<std::conjunction_v<VALID_NUMERIC, VALID_U_INT>,
+  constexpr inline enable_if_t<conjunction_v<VALID_NUMERIC, VALID_U_INT>,
     numeric> rol(numeric x, u_int num_bits) noexcept {
     rol(&x, num_bits);
     return x;
@@ -88,7 +73,7 @@ namespace Binary {
 
   // Counts the number of bits in x that are set to 1
   template <class numeric>
-  constexpr std::enable_if_t<VALID_NUMERIC::value, int> countSetBits(numeric x) noexcept {
+  constexpr enable_if_t<VALID_NUMERIC::value, int> countSetBits(numeric x) noexcept {
     if (!x) return 0;
     else if (!(x &= (x - 1))) return 1; // set LS1B to 0 by two's-complement magic
 
@@ -104,7 +89,7 @@ namespace Binary {
 
   // isolates the most significant 1 bit in x
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     void> isolateMS1B(numeric* x) noexcept {
     *x |= *x >> 1;
     if constexpr (NUMERIC_BIT > 2) *x |= *x >> 2;    // 4-bit finishes here
@@ -119,7 +104,7 @@ namespace Binary {
     *x ^= *x >> 1;
   }
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     numeric> isolateMS1B(numeric x) noexcept {
     isolateMS1B(&x);
     return x;
@@ -127,7 +112,7 @@ namespace Binary {
 
   // isolates the least significant 1 bit in x
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     void> isolateLS1B(numeric* x) noexcept {
     // two's-complement trickery
     // (-x) == (~x + 1)
@@ -137,7 +122,7 @@ namespace Binary {
     *x &= (-*x);
   }
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     numeric> isolateLS1B(numeric x) noexcept {
     isolateLS1B(&x);
     return x;
@@ -146,7 +131,7 @@ namespace Binary {
   // finds the index of the most significant 1 bit in x
   // relative to the least significant possible bit (rightmost bit)
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     int> indexOfMS1B(numeric x) noexcept {
     if (!x) return NUMERIC_BIT + 1;
 
@@ -204,7 +189,7 @@ namespace Binary {
   // finds the index of the least significant 1 bit in x
   // relative to the least significant possible bit (rightmost bit)
   template <class numeric>
-  constexpr inline std::enable_if_t<VALID_NUMERIC::value,
+  constexpr inline enable_if_t<VALID_NUMERIC::value,
     int> indexOfLS1B(numeric x) noexcept {
     return indexOfMS1B(isolateLS1B(x));
   }
