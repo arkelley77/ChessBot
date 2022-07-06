@@ -82,6 +82,55 @@ namespace Movegen {
     , Bitboards::bb my_pieces, Bitboards::bb enemy_bishoplike
     , Bitboards::bb enemy_rooklike) noexcept;
 
+  inline Bitboards::bb findPinnedRailNW(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_bishoplike) noexcept {
+    using namespace Bitboards;
+    return shiftNW((obstructedFillNW(king, ~enemy_bishoplike)))
+      & obstructedFillSE(enemy_bishoplike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailNE(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_bishoplike) noexcept {
+    using namespace Bitboards;
+    return shiftNE((obstructedFillNE(king, ~enemy_bishoplike)))
+      & obstructedFillSW(enemy_bishoplike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailSW(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_bishoplike) noexcept {
+    using namespace Bitboards;
+    return shiftSW((obstructedFillSW(king, ~enemy_bishoplike)))
+      & obstructedFillNE(enemy_bishoplike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailSE(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_bishoplike) noexcept {
+    using namespace Bitboards;
+    return shiftSE((obstructedFillSE(king, ~enemy_bishoplike)))
+      & obstructedFillNW(enemy_bishoplike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailN(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_rooklike) noexcept {
+    using namespace Bitboards;
+    return shiftN((obstructedFillN(king, ~enemy_rooklike)))
+      & obstructedFillS(enemy_rooklike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailS(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_rooklike) noexcept {
+    using namespace Bitboards;
+    return shiftS((obstructedFillS(king, ~enemy_rooklike)))
+      & obstructedFillN(enemy_rooklike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailE(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_rooklike) noexcept {
+    using namespace Bitboards;
+    return shiftE((obstructedFillE(king, ~enemy_rooklike)))
+      & obstructedFillW(enemy_rooklike, ~king);
+  }
+  inline Bitboards::bb findPinnedRailW(Bitboards::bb king, Bitboards::bb empty_squares, Bitboards::bb my_pieces
+    , Bitboards::bb enemy_rooklike) noexcept {
+    using namespace Bitboards;
+    return shiftW((obstructedFillW(king, ~enemy_rooklike)))
+      & obstructedFillE(enemy_rooklike, ~king);
+  }
+
   Bitboards::bb findCheckingPieces(Bitboards::bb king, Bitboards::bb empty_squares
     , Bitboards::bb enemy_knights, Bitboards::bb enemy_bishoplike
     , Bitboards::bb enemy_rooklike) noexcept;

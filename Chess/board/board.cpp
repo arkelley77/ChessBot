@@ -32,7 +32,6 @@ void Board::setUp(const char* fen) {
     }
     else THROW_INVALID_FEN; // not sure why this would be triggered
   }
-
   // parse the side to move
   ++i;
   switch (fen[i]) {
@@ -45,7 +44,7 @@ void Board::setUp(const char* fen) {
   default: THROW_INVALID_FEN;
   }
   ++i;
-  if (fen[i] == '\0') THROW_INVALID_FEN;
+  if (fen[i] != ' ') THROW_INVALID_FEN;
   ++i;
   for (; fen[i] != ' '; ++i) {
     switch (fen[i]) {
@@ -57,9 +56,18 @@ void Board::setUp(const char* fen) {
       break;
     case 'q': flags |= b_castle_queenside;
       break;
+    case '-': break;
     default: THROW_INVALID_FEN;
     }
   }
+  ++i;
+  if (fen[i] != '-') {
+    if ('a' > fen[i] || fen[i] > 'h') THROW_INVALID_FEN;
+    ++i;
+    if ('1' > fen[i] || fen[i] > '8') THROW_INVALID_FEN;
+    en_passant_square = Indexing::getIDX(fen[i] - '1', fen[i - 1] - 'a');
+  }
+  ++i;
 #undef THROW_INVALID_FEN
 }
 
@@ -159,50 +167,103 @@ vector<Move> Board::getAllMoves() const noexcept {
   bb enemy_rooklike = rooklike & enemy_pieces;
   bb enemy_king = bitboards[kings] & enemy_pieces;
 
-  bb not_pinned = ~findPinnedTo(my_king, empty_squares, my_pieces
-    , enemy_bishoplike, enemy_rooklike);
+  bb en_passant_pawn = 0, en_passant_target = 0;
+  if (en_passant_square != -1) {
+    en_passant_target = idxToBoard(en_passant_square);
+    en_passant_pawn = (isWhitesMove())
+      ? idxToBoard(en_passant_square + Indexing::south)
+      : idxToBoard(en_passant_square + Indexing::north);
+  }
+
   bb valid_move_targets = (isWhitesMove())
     ? legalMoveTargetsWhite(my_king, empty_squares, enemy_pawns
       , enemy_knights, enemy_bishoplike, enemy_rooklike)
     : legalMoveTargetsBlack(my_king, empty_squares, enemy_pawns
       , enemy_knights, enemy_bishoplike, enemy_rooklike);
-  bb under_threat = (isWhitesMove())
+  bb under_threat = ((isWhitesMove())
     ? genAllThreatsBlack(enemy_pawns, enemy_knights, enemy_bishoplike
-      , enemy_rooklike, enemy_king, empty_squares)
+      , enemy_rooklike, enemy_king, empty_squares | my_king)
     : genAllThreatsWhite(enemy_pawns, enemy_knights, enemy_bishoplike
-      , enemy_rooklike, enemy_king, empty_squares);
-
-  my_pawns &= not_pinned;
-  my_knights &= not_pinned;
-  my_bishops &= not_pinned;
-  my_rooks &= not_pinned;
-  my_queens &= not_pinned;
+      , enemy_rooklike, enemy_king, empty_squares | my_king));
 
   bb valid_cap_targets = valid_move_targets & enemy_pieces;
   bb valid_quiet_targets = valid_move_targets & empty_squares;
 
-  size_t i = 0;
+  bb pinned_nw = findPinnedRailNW(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_ne = findPinnedRailNE(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_sw = findPinnedRailSW(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_se = findPinnedRailSE(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_n = findPinnedRailN(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_s = findPinnedRailS(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_e = findPinnedRailE(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_w = findPinnedRailW(my_king, empty_squares, my_pieces, enemy_bishoplike);
+
+  pinned_nw = (countSetBits(pinned_nw & my_pieces) == 1) ? pinned_nw : 0;
+  pinned_ne = (countSetBits(pinned_ne & my_pieces) == 1) ? pinned_ne : 0;
+  pinned_sw = (countSetBits(pinned_sw & my_pieces) == 1) ? pinned_sw : 0;
+  pinned_se = (countSetBits(pinned_se & my_pieces) == 1) ? pinned_se : 0;
+  pinned_n = (countSetBits(pinned_n & my_pieces) == 1) ? pinned_n : 0;
+  pinned_s = (countSetBits(pinned_s & my_pieces) == 1) ? pinned_s : 0;
+  pinned_e = (countSetBits(pinned_e & my_pieces) == 1) ? pinned_e : 0;
+  pinned_w = (countSetBits(pinned_w & my_pieces) == 1) ? pinned_w : 0;
+
+  bb pinned_bishop_rails = pinned_nw | pinned_ne | pinned_sw | pinned_se;
+  bb pinned_bishop_cap_targets = valid_cap_targets & pinned_bishop_rails;
+  bb pinned_bishop_quiet_targets = valid_quiet_targets & pinned_bishop_rails;
+  bb pinned_rook_rails = pinned_n | pinned_s | pinned_e | pinned_w;
+  bb pinned_rook_cap_targets = valid_cap_targets & pinned_rook_rails;
+  bb pinned_rook_quiet_targets = valid_quiet_targets & pinned_rook_rails;
+
+  bb not_pinned = ~((pinned_bishop_rails | pinned_rook_rails) & my_pieces);
 
   // capture moves
-  if (isWhitesMove()) genPawnCapsN(my_pawns, valid_cap_targets, moves);
-  else genPawnCapsS(my_pawns, valid_cap_targets, moves);
-  genKnightCaps(my_knights, valid_cap_targets, moves);
-  genBishopCaps(my_bishops, empty_squares, valid_cap_targets, moves);
-  genRookCaps(my_rooks, empty_squares, valid_cap_targets, moves);
-  genQueenCaps(my_queens, empty_squares, valid_cap_targets, moves);
+  if (isWhitesMove()) {
+    if (valid_cap_targets & en_passant_pawn) {
+      genPawnCapsN(my_pawns & not_pinned, valid_cap_targets | en_passant_target, moves);
+      genPawnCapsN(my_pawns & pinned_bishop_rails, pinned_bishop_cap_targets | en_passant_target, moves);
+    }
+    else {
+      genPawnCapsN(my_pawns & not_pinned, valid_cap_targets, moves);
+      genPawnCapsN(my_pawns & pinned_bishop_rails, pinned_bishop_cap_targets, moves);
+    }
+  }
+  else {
+    if (valid_cap_targets & en_passant_pawn) {
+      genPawnCapsS(my_pawns & not_pinned, valid_cap_targets | en_passant_target, moves);
+      genPawnCapsS(my_pawns & pinned_bishop_rails, pinned_bishop_cap_targets | en_passant_target, moves);
+    }
+    else {
+      genPawnCapsS(my_pawns & not_pinned, valid_cap_targets, moves);
+      genPawnCapsS(my_pawns & pinned_bishop_rails, pinned_bishop_cap_targets, moves);
+    }
+  }
+  genKnightCaps(my_knights & not_pinned, valid_cap_targets, moves);
+  genBishopCaps(my_bishops & not_pinned, empty_squares, valid_cap_targets, moves);
+  genBishopCaps(my_bishops & pinned_bishop_rails, pinned_bishop_rails, pinned_bishop_cap_targets, moves);
+  genRookCaps(my_rooks & not_pinned, empty_squares, valid_cap_targets, moves);
+  genRookCaps(my_rooks & pinned_rook_rails, pinned_rook_rails, pinned_rook_cap_targets, moves);
+  genQueenCaps(my_queens & not_pinned, empty_squares, valid_cap_targets, moves);
+  genQueenCaps(my_queens & pinned_bishop_rails, pinned_bishop_rails, pinned_bishop_cap_targets, moves);
+  genQueenCaps(my_queens & pinned_rook_rails, pinned_rook_rails, pinned_rook_cap_targets, moves);
 
-  genKnightMoves(my_knights, valid_quiet_targets, moves);
-  genBishopMoves(my_bishops, valid_quiet_targets, moves);
-  genRookMoves(my_rooks, valid_quiet_targets, moves);
-  genQueenMoves(my_queens, valid_quiet_targets, moves);
+  genKnightMoves(my_knights & not_pinned, valid_quiet_targets, moves);
+  genBishopMoves(my_bishops & not_pinned, valid_quiet_targets, moves);
+  genBishopMoves(my_bishops & pinned_bishop_rails, pinned_bishop_quiet_targets, moves);
+  genRookMoves(my_rooks & not_pinned, valid_quiet_targets, moves);
+  genRookMoves(my_rooks & pinned_rook_rails, pinned_rook_quiet_targets, moves);
+  genQueenMoves(my_queens & not_pinned, valid_quiet_targets, moves);
+  genQueenMoves(my_queens & pinned_bishop_rails, pinned_bishop_quiet_targets, moves);
+  genQueenMoves(my_queens & pinned_rook_rails, pinned_rook_quiet_targets, moves);
 
   if (isWhitesMove()) {
-    genPawnPushesN(my_pawns, valid_quiet_targets, enemy_pawns, moves);
+    genPawnPushesN(my_pawns & not_pinned, valid_quiet_targets, enemy_pawns, moves);
+    genPawnPushesN(my_pawns & pinned_rook_rails, pinned_rook_quiet_targets, enemy_pawns, moves);
     genKingMoves(my_king, empty_squares, ~under_threat, enemy_pieces
       , flags & w_castle_queenside, flags & w_castle_kingside, moves);
   }
   else {
-    genPawnPushesS(my_pawns, valid_quiet_targets, enemy_pawns, moves);
+    genPawnPushesS(my_pawns & not_pinned, valid_quiet_targets, enemy_pawns, moves);
+    genPawnPushesS(my_pawns & pinned_bishop_rails, pinned_rook_quiet_targets, enemy_pawns, moves);
     genKingMoves(my_king, empty_squares, ~under_threat, enemy_pieces
       , flags & b_castle_queenside, flags & b_castle_kingside, moves);
   }
@@ -215,9 +276,18 @@ Piece::Name Board::executeMove(Move move) noexcept {
   Move::Special special = move.getSpecial();
 
   Piece::Name piece = rmPiece(from);
-  en_passant_square = -1;
 
   Piece::Name on_dest = rmPiece(to);
+  if (to == en_passant_square) {
+    switch (piece) {
+    case Piece::white_pawn: on_dest = rmPiece(to + south);
+      break;
+    case Piece::black_pawn: on_dest = rmPiece(to + north);
+      break;
+    default: break;
+    }
+  }
+  en_passant_square = -1;
 
   switch (special) {
   case Move::promo: piece = Piece::makePiece(move.getPromoPieceType(), isWhitesMove());
@@ -237,6 +307,8 @@ Piece::Name Board::executeMove(Move move) noexcept {
     }
     pushPiece(rmPiece(rook_from), rook_to);
   }
+
+  
   
   pushPiece(piece, to);
   switchMoveSide();

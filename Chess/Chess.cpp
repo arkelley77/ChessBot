@@ -8,9 +8,9 @@ using namespace std;
 string printed;
 bool running = true;
 
-void print(string s) {
-  cout << s << flush;
-  printed += s;
+void print(string s, const char* end="\n") {
+  cout << s << end << flush;
+  printed += s + end;
 }
 void delete_printed() {
   for (auto it : printed) cout << '\b';
@@ -35,33 +35,33 @@ string tolower(string str) {
   return str;
 }
 
-string getline(string& to) {
-  print(">> ");
+void getline(string& to) {
+  print(">> ", "");
   getline(cin, to);
+  printed += to + '\n';
   to = tolower(to);
-  if (to == "q" || to == "quit" || cin.eof()) running == false;
+  if (to == "q" || to == "quit" || cin.eof()) running = false;
 }
 
 int main()
 {
   Board board;
+  string input;
   board.setUp();
 
+  print(board.toString() + "\nSelect a piece by typing 'sel' or 'select',\nthen the adress of the piece.\nFor example: sel e2\nTo quit, type 'q' or 'quit' at any time.\n");
+  getline(input);
   while (running) {
-    string input;
-    print(board.toString() + "\nSelect a piece by typing 'sel' or 'select',\nthen the adress of the piece.\nFor example: sel e2\nTo quit, type 'q' or 'quit' at any time.\n");
     vector<Move> valid_moves = board.getAllMoves();
-    getline(input);
-    printed += input + '\n';
     vector<string> input_split = split(input, ' ');
     if (input_split.size() == 0) {
-      print("input split size 0\n");
+      print("input split size 0");
     }
     else if (input_split.size() == 1) {
-      print("input split size 1\n");
+      print("input split size 1");
     }
     else if (input_split.size() == 2) {
-      if (tolower(input_split[0]) == "sel" || tolower(input_split[0]) == "select") {
+      if (input_split[0] == "sel" || input_split[0] == "select") {
         try {
           int from = Indexing::stringToIdx(input_split[1]);
           delete_printed();
@@ -70,20 +70,19 @@ int main()
           cout << printed.substr(board_out.size(), printed.size() - board_out.size());
           print("Where would you like to move to?\n(Drop the piece by typing an invalid square)");
           getline(input);
-          printed += input + '\n';
           int to = Indexing::stringToIdx(input);
           Move move(from, to);
           if ((board.getPiece(from) == Piece::white_pawn && Indexing::getRank(to) == Indexing::r8)
             || (board.getPiece(from) == Piece::black_pawn && Indexing::getRank(to) == Indexing::r1)) {
             move.setSpecial(Move::promo);
           retry_promotion:
-            print("What would you like to promote to? ('knight', 'bishop', 'rook', or 'queen')\n");
-            getline(cin, input);
-            if (tolower(input) == "knight") move.setPromoType(Move::knight);
-            else if (tolower(input) == "bishop") move.setPromoType(Move::bishop);
-            else if (tolower(input) == "rook") move.setPromoType(Move::rook);
-            else if (tolower(input) == "queen") move.setPromoType(Move::queen);
-            else goto retry_promotion;
+            print("What would you like to promote to? ('knight', 'bishop', 'rook', or 'queen')");
+            getline(input);
+            if (input == "knight") move.setPromoType(Move::knight);
+            else if (input == "bishop") move.setPromoType(Move::bishop);
+            else if (input == "rook") move.setPromoType(Move::rook);
+            else if (input == "queen") move.setPromoType(Move::queen);
+            else if (running) goto retry_promotion;
           }
           else if ((board.getPiece(from) == Piece::white_pawn && Indexing::getRank(to) == Indexing::r4 && Indexing::getRank(from) == Indexing::r2)) {
             if (board.getPiece(to + Indexing::west) == Piece::black_pawn || board.getPiece(to + Indexing::east) == Piece::black_pawn) {
@@ -108,12 +107,13 @@ int main()
             }
           }
         }
-        catch (std::exception& e) { print("bad idx\n"); }
+        catch (std::exception& e) { print("bad idx"); }
       }
     }
     delete_printed();
     printed.clear();
-    continue;
+    print(board.toString() + "\nSelect a piece by typing 'sel' or 'select',\nthen the adress of the piece.\nFor example: sel e2\nTo quit, type 'q' or 'quit' at any time.");
+    getline(input);
   }
 
 end:

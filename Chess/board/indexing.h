@@ -60,6 +60,9 @@ namespace Indexing {
     else throw std::invalid_argument("");
     return idx;
   }
+  inline int stringToIdx(const char* coords) {
+    return stringToIdx(std::string(coords));
+  }
 }
 
 #endif // INDEXING_H

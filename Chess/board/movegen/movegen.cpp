@@ -11,7 +11,7 @@ void Movegen::genPawnPushesN(bb pawns, bb empty_squares, bb enemy_pawns, vector<
   bb singles = shiftN(pawns) & empty_squares; // single-square pawn moves
   bb doubles = shiftN(singles) & r4 & empty_squares;
   bb en_passant_avail = (shiftW(enemy_pawns) | shiftE(enemy_pawns)) & doubles;
-  bb dest_square;
+  bb dest_square = 0;
   for (; singles; singles &= ~dest_square) {
     int to = indexOfMS1B(singles);
     dest_square = idxToBoard(to);
@@ -25,6 +25,7 @@ void Movegen::genPawnPushesN(bb pawns, bb empty_squares, bb enemy_pawns, vector<
     }
     else out_to.push_back(Move(from, to));
   }
+  dest_square = 0;
   for (; doubles; doubles &= ~dest_square) {
     int to = indexOfMS1B(doubles);
     dest_square = idxToBoard(to);
@@ -42,7 +43,7 @@ void Movegen::genPawnPushesS(bb pawns, bb empty_squares, bb enemy_pawns, vector<
   bb singles = shiftS(pawns) & empty_squares; // single-square pawn moves
   bb doubles = shiftS(singles) & r5 & empty_squares;
   bb en_passant_avail = (shiftW(enemy_pawns) | shiftE(enemy_pawns)) & doubles;
-  bb dest_square;
+  bb dest_square  = 0;
   for (; singles; singles &= ~dest_square) {
     int to = indexOfMS1B(singles);
     dest_square = idxToBoard(to);
@@ -56,6 +57,7 @@ void Movegen::genPawnPushesS(bb pawns, bb empty_squares, bb enemy_pawns, vector<
     }
     else out_to.push_back(Move(from, to));
   }
+  dest_square = 0;
   for (; doubles; doubles &= ~dest_square) {
     int to = indexOfMS1B(doubles);
     dest_square = idxToBoard(to);
@@ -76,7 +78,7 @@ void Movegen::genPawnCapsN(bb from_pawns, bb targets, vector<Move>& out_to) noex
   // the north/south shift will never overflow, so no masking is needed
   // therefore, we use the shift() function from Binary to avoid it
   bb caps = shiftNW(from_pawns) & targets;
-  for (bb dest_square; caps; caps &= ~dest_square) {
+  for (bb dest_square = 0; caps; caps &= ~dest_square) {
     int to = indexOfMS1B(caps);
     int from = to + s_east;
     dest_square = idxToBoard(to);
@@ -90,7 +92,7 @@ void Movegen::genPawnCapsN(bb from_pawns, bb targets, vector<Move>& out_to) noex
     else out_to.push_back(Move(from, to));
   }
   caps = shiftNE(from_pawns) & targets;
-  for (bb dest_square; caps; caps &= ~dest_square) {
+  for (bb dest_square = 0; caps; caps &= ~dest_square) {
     int to = indexOfMS1B(caps);
     int from = to + s_west;
     dest_square = idxToBoard(to);
@@ -112,9 +114,9 @@ void Movegen::genPawnCapsS(bb from_pawns, bb targets, vector<Move>& out_to) noex
   // the north/south shift will never overflow, so no masking is needed
   // therefore, we use the shift() function from Binary to avoid it
   bb caps = shiftSW(from_pawns) & targets;
-  for (bb dest_square; caps; caps &= ~dest_square) {
+  for (bb dest_square = 0; caps; caps &= ~dest_square) {
     int to = indexOfMS1B(caps);
-    int from = to + s_east;
+    int from = to + n_east;
     dest_square = idxToBoard(to);
     if (dest_square & r8) {
       // potential pawn promotion
@@ -126,9 +128,9 @@ void Movegen::genPawnCapsS(bb from_pawns, bb targets, vector<Move>& out_to) noex
     else out_to.push_back(Move(from, to));
   }
   caps = shiftSE(from_pawns) & targets;
-  for (bb dest_square; caps; caps &= ~dest_square) {
+  for (bb dest_square = 0; caps; caps &= ~dest_square) {
     int to = indexOfMS1B(caps);
-    int from = to + s_west;
+    int from = to + n_west;
     dest_square = idxToBoard(to);
     if (dest_square & r8) {
       // potential pawn promotion
@@ -142,80 +144,81 @@ void Movegen::genPawnCapsS(bb from_pawns, bb targets, vector<Move>& out_to) noex
 }
 
 void Movegen::genKnightMoves(bb knights, bb empty_squares, vector<Move>& out_to) noexcept {
-  for (bb from_square; knights; knights &= ~from_square) {
+  for (bb from_square = 0; knights; knights &= ~from_square) {
     int from = indexOfMS1B(knights), to;
     from_square = idxToBoard(from);
-    
-    for (bb slides = genKnightThreats(from_square) & empty_squares
-      ; slides; slides &= ~idxToBoard(to)) {
+
+    bb slides = genKnightThreats(from_square) & empty_squares;
+    while (slides) {
       to = indexOfMS1B(slides);
       out_to.push_back(Move(from, to));
-      bool spec = out_to.back().getSpecial();
-      continue;
+      slides &= ~idxToBoard(to);
     }
   }
 }
 void Movegen::genKnightCaps(bb knights, bb enemy_pieces, vector<Move>& out_to) noexcept {
-  for (bb from_square; knights; knights &= ~from_square) {
+  for (bb from_square = 0; knights; knights &= ~from_square) {
     int from = indexOfMS1B(knights), to;
     from_square = idxToBoard(from);
-    
-    for (bb caps = genKnightThreats(from_square) & enemy_pieces
-      ; caps; caps &= ~idxToBoard(to)) {
+
+    bb caps = genKnightThreats(from_square) & enemy_pieces;
+    while (caps) {
       to = indexOfMS1B(caps);
       out_to.push_back(Move(from, to));
-      bool spec = out_to.back().getSpecial();
-      continue;
+      caps &= ~idxToBoard(to);
     }
   }
 }
 
 void Movegen::genBishopMoves(bb bishops, bb empty_squares, vector<Move>& out_to) noexcept {
-  for (bb from_square; bishops; bishops &= ~from_square) {
+  for (bb from_square = 0; bishops; bishops &= ~from_square) {
     int from = indexOfMS1B(bishops), to;
     from_square = idxToBoard(from);
-    
-    for (bb slides = genBishopThreats(from_square, empty_squares) & empty_squares
-      ; slides; slides &= ~idxToBoard(to)) {
+
+    bb slides = genBishopThreats(from_square, empty_squares) & empty_squares;
+    while (slides) {
       to = indexOfMS1B(slides);
       out_to.push_back(Move(from, to));
+      slides &= ~idxToBoard(to);
     }
   }
 }
 void Movegen::genBishopCaps(bb bishops, bb empty_squares, bb enemy_pieces, vector<Move>& out_to) noexcept {
-  for (bb from_square; bishops; bishops &= ~from_square) {
+  for (bb from_square = 0; bishops; bishops &= ~from_square) {
     int from = indexOfMS1B(bishops), to;
     from_square = idxToBoard(from);
-    
-    for (bb caps = genBishopThreats(from_square, empty_squares) & enemy_pieces
-      ; caps; caps &= ~idxToBoard(to)) {
+
+    bb caps = genBishopThreats(from_square, empty_squares) & enemy_pieces;
+    while (caps) {
       to = indexOfMS1B(caps);
       out_to.push_back(Move(from, to));
+      caps &= ~idxToBoard(to);
     }
   }
 }
 
 void Movegen::genRookMoves(bb rooks, bb empty_squares, vector<Move>& out_to) noexcept {
-  for (bb from_square; rooks; rooks &= ~from_square) {
+  for (bb from_square = 0; rooks; rooks &= ~from_square) {
     int from = indexOfMS1B(rooks), to;
     from_square = idxToBoard(from);
-    
-    for (bb slides = genRookThreats(from_square, empty_squares) & empty_squares
-      ; slides; slides &= ~idxToBoard(to)) {
+    bb slides = genRookThreats(from_square, empty_squares) & empty_squares;
+    while (slides) {
       to = indexOfMS1B(slides);
       out_to.push_back(Move(from, to));
+      slides &= ~idxToBoard(to);
     }
   }
 }
 void Movegen::genRookCaps(bb rooks, bb empty_squares, bb enemy_pieces, vector<Move>& out_to) noexcept {
-  for (bb from_square; rooks; rooks &= ~from_square) {
+  for (bb from_square = 0; rooks; rooks &= ~from_square) {
     int from = indexOfMS1B(rooks), to;
     from_square = idxToBoard(from);
 
-    for (bb caps = genRookThreats(from_square, empty_squares) & enemy_pieces
-      ; caps; caps &= ~idxToBoard(to)) {
+    bb caps = genRookThreats(from_square, empty_squares) & enemy_pieces;
+    while (caps) {
       to = indexOfMS1B(caps);
       out_to.push_back(Move(from, to));
+      caps &= ~idxToBoard(to);
     }
   }
 }
@@ -231,22 +234,25 @@ void Movegen::genKingMoves(Bitboards::bb king, Bitboards::bb empty_squares
   bb castle_board = empty_not_threatened & (
     ((castle_queenside) ? shiftW(shiftW(king) & empty_not_threatened) : 0)
     | ((castle_kingside) ? shiftE(shiftE(king) & empty_not_threatened) : 0));
-  
-  for (bb caps = moves_board & enemy_pieces
-    ; caps; caps &= ~(idxToBoard(to))) {
-    to = indexOfMS1B(moves_board);
+
+  bb caps = moves_board & enemy_pieces;
+  while (caps) {
+    to = indexOfMS1B(caps);
     out_to.push_back(Move(from, to));
-  }
-  
-  for (bb slides = moves_board & ~enemy_pieces
-    ; slides; slides &= ~(idxToBoard(to))) {
-    to = indexOfMS1B(slides);
-    out_to.push_back(Move(from, to));
+    caps &= ~(idxToBoard(to));
   }
 
-  for (; castle_board; castle_board &= ~idxToBoard(to)) {
+  bb slides = moves_board & ~enemy_pieces;
+  while (slides) {
+    to = indexOfMS1B(slides);
+    out_to.push_back(Move(from, to));
+    slides &= ~(idxToBoard(to));
+  }
+
+  while (castle_board) {
     to = indexOfMS1B(castle_board);
     out_to.push_back(Move(from, to, Move::castling));
+    castle_board &= ~idxToBoard(to);
   }
 }
 
@@ -304,7 +310,7 @@ bb Movegen::legalMoveTargetsWhite(bb king, bb empty_squares, bb enemy_pawns
     if (knight & enemy_knights) return knight & enemy_knights;
     if (pawn & enemy_pawns) return pawn & enemy_pawns;
     [[fallthrough]];
-  case 0: return -1;
+  case 0: return ~0ULL;
   default: return 0;
   }
 }
@@ -337,7 +343,7 @@ bb Movegen::legalMoveTargetsBlack(bb king, bb empty_squares, bb enemy_pawns
     if (knight & enemy_knights) return knight & enemy_knights;
     if (pawn & enemy_pawns) return pawn & enemy_pawns;
     [[fallthrough]];
-  case 0: return -1;
+  case 0: return ~0ULL;
   default: return 0;
   }
 }
