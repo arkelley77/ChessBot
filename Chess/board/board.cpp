@@ -189,23 +189,26 @@ vector<Move> Board::getAllMoves() const noexcept {
   bb valid_cap_targets = valid_move_targets & enemy_pieces;
   bb valid_quiet_targets = valid_move_targets & empty_squares;
 
-  bb pinned_nw = findPinnedRailNW(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_ne = findPinnedRailNE(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_sw = findPinnedRailSW(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_se = findPinnedRailSE(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_n = findPinnedRailN(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_s = findPinnedRailS(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_e = findPinnedRailE(my_king, empty_squares, my_pieces, enemy_bishoplike);
-  bb pinned_w = findPinnedRailW(my_king, empty_squares, my_pieces, enemy_bishoplike);
+  bb pinned_nw = findPinnedRailNW(my_king, enemy_pieces, enemy_bishoplike);
+  bb pinned_ne = findPinnedRailNE(my_king, enemy_pieces, enemy_bishoplike);
+  bb pinned_sw = findPinnedRailSW(my_king, enemy_pieces, enemy_bishoplike);
+  bb pinned_se = findPinnedRailSE(my_king, enemy_pieces, enemy_bishoplike);
+  bb pinned_n = findPinnedRailN(my_king, enemy_pieces, enemy_rooklike);
+  bb pinned_s = findPinnedRailS(my_king, enemy_pieces, enemy_rooklike);
+  bb pinned_e = findPinnedRailE(my_king, enemy_pieces, enemy_rooklike);
+  bb pinned_w = findPinnedRailW(my_king, enemy_pieces, enemy_rooklike);
+  bb pinned_e_pwn_cap = findPinnedRailE(my_king, enemy_pieces & ~en_passant_pawn, enemy_rooklike);
+  bb pinned_w_pwn_cap = findPinnedRailW(my_king, enemy_pieces & ~en_passant_pawn, enemy_rooklike);
 
-  pinned_nw = (countSetBits(pinned_nw & my_pieces) == 1) ? pinned_nw : 0;
-  pinned_ne = (countSetBits(pinned_ne & my_pieces) == 1) ? pinned_ne : 0;
-  pinned_sw = (countSetBits(pinned_sw & my_pieces) == 1) ? pinned_sw : 0;
-  pinned_se = (countSetBits(pinned_se & my_pieces) == 1) ? pinned_se : 0;
-  pinned_n = (countSetBits(pinned_n & my_pieces) == 1) ? pinned_n : 0;
-  pinned_s = (countSetBits(pinned_s & my_pieces) == 1) ? pinned_s : 0;
-  pinned_e = (countSetBits(pinned_e & my_pieces) == 1) ? pinned_e : 0;
-  pinned_w = (countSetBits(pinned_w & my_pieces) == 1) ? pinned_w : 0;
+  pinned_nw = (pinned_nw & enemy_pieces) ? 0 : ((countSetBits(pinned_nw & my_pieces) == 1) ? pinned_nw : 0);
+  pinned_ne = (pinned_ne & enemy_pieces) ? 0 : ((countSetBits(pinned_ne & my_pieces) == 1) ? pinned_ne : 0);
+  pinned_sw = (pinned_sw & enemy_pieces) ? 0 : ((countSetBits(pinned_sw & my_pieces) == 1) ? pinned_sw : 0);
+  pinned_se = (pinned_se & enemy_pieces) ? 0 : ((countSetBits(pinned_se & my_pieces) == 1) ? pinned_se : 0);
+  pinned_n = (pinned_n & enemy_pieces) ? 0 : ((countSetBits(pinned_n & my_pieces) == 1) ? pinned_n : 0);
+  pinned_s = (pinned_s & enemy_pieces) ? 0 : ((countSetBits(pinned_s & my_pieces) == 1) ? pinned_s : 0);
+
+  pinned_e = (pinned_e & enemy_pieces) ? 0 : ((countSetBits(pinned_e & my_pieces) == 1) ? pinned_e : 0);
+  pinned_w = (pinned_w & enemy_pieces) ? 0 : ((countSetBits(pinned_w & my_pieces) == 1) ? pinned_w : 0);
 
   bb pinned_bishop_rails = pinned_nw | pinned_ne | pinned_sw | pinned_se;
   bb pinned_bishop_cap_targets = valid_cap_targets & pinned_bishop_rails;
@@ -214,12 +217,15 @@ vector<Move> Board::getAllMoves() const noexcept {
   bb pinned_rook_cap_targets = valid_cap_targets & pinned_rook_rails;
   bb pinned_rook_quiet_targets = valid_quiet_targets & pinned_rook_rails;
 
-  bb not_pinned = ~((pinned_bishop_rails | pinned_rook_rails) & my_pieces);
+  bb pinned_pwn_cap_rail = pinned_e_pwn_cap | pinned_w_pwn_cap | pinned_n | pinned_s;
+
+  bb not_pinned = ~(pinned_bishop_rails | pinned_rook_rails);
+  bb not_pinned_pwn_cap = ~pinned_pwn_cap_rail;
 
   // capture moves
   if (isWhitesMove()) {
     if (valid_cap_targets & en_passant_pawn) {
-      genPawnCapsN(my_pawns & not_pinned, valid_cap_targets | en_passant_target, moves);
+      genPawnCapsN(my_pawns & not_pinned_pwn_cap, valid_cap_targets | en_passant_target, moves);
       genPawnCapsN(my_pawns & pinned_bishop_rails, pinned_bishop_cap_targets | en_passant_target, moves);
     }
     else {
@@ -229,7 +235,7 @@ vector<Move> Board::getAllMoves() const noexcept {
   }
   else {
     if (valid_cap_targets & en_passant_pawn) {
-      genPawnCapsS(my_pawns & not_pinned, valid_cap_targets | en_passant_target, moves);
+      genPawnCapsS(my_pawns & not_pinned_pwn_cap, valid_cap_targets | en_passant_target, moves);
       genPawnCapsS(my_pawns & pinned_bishop_rails, pinned_bishop_cap_targets | en_passant_target, moves);
     }
     else {

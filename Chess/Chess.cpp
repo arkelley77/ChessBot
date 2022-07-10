@@ -14,6 +14,7 @@ void print(string s, const char* end="\n") {
 }
 void delete_printed() {
   for (auto it : printed) cout << '\b';
+  printed.clear();
 }
 
 vector<string> split(string str, char c) {
@@ -47,7 +48,7 @@ int main()
 {
   Board board;
   string input;
-  board.setUp();
+  board.setUp("////k2pP1R///K b - e3");
 
   print(board.toString() + "\nSelect a piece by typing 'sel' or 'select',\nthen the adress of the piece.\nFor example: sel e2\nTo quit, type 'q' or 'quit' at any time.\n");
   getline(input);
@@ -64,10 +65,11 @@ int main()
       if (input_split[0] == "sel" || input_split[0] == "select") {
         try {
           int from = Indexing::stringToIdx(input_split[1]);
-          delete_printed();
           string board_out = Userspace::getPrettyPrint(board.getBuffer(from));
-          cout << board_out;
-          cout << printed.substr(board_out.size(), printed.size() - board_out.size());
+          string sav = printed.substr(board_out.size(), printed.size() - board_out.size());
+
+          delete_printed();
+          print(board_out);
           print("Where would you like to move to?\n(Drop the piece by typing an invalid square)");
           getline(input);
           int to = Indexing::stringToIdx(input);
@@ -111,7 +113,6 @@ int main()
       }
     }
     delete_printed();
-    printed.clear();
     print(board.toString() + "\nSelect a piece by typing 'sel' or 'select',\nthen the adress of the piece.\nFor example: sel e2\nTo quit, type 'q' or 'quit' at any time.");
     getline(input);
   }
